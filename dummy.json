@@ -2,11 +2,49 @@
     "overlays": {
         "fireflies": true,
         "dragonflies": false,
-        "dandelions": false
+        "dandelions": false,
+        "butterfly_blue": true,
+        "butterfly_yellow": false,
+        "butterfly_orange": false,
+        "butterfly_mix": false,
+        "hornwort": false,
+        "fireflies_count": 6,
+        "dragonflies_count": 2,
+        "dandelions_count": 3,
+        "butterfly_blue_count": 1,
+        "butterfly_yellow_count": 1,
+        "butterfly_orange_count": 1,
+        "butterfly_mix_count": 3,
+        "hornwort_count": 4,
+        "fireflies_scale": 1.0,
+        "dragonflies_scale": 1.0,
+        "dandelions_scale": 1.0,
+        "butterfly_blue_scale": 0.5,
+        "butterfly_yellow_scale": 1.0,
+        "butterfly_orange_scale": 1.0,
+        "butterfly_mix_scale": 1.0,
+        "hornwort_scale": 1.0,
+        "fireflies_opacity": 1.0,
+        "dragonflies_opacity": 1.0,
+        "dandelions_opacity": 1.0,
+        "butterfly_blue_opacity": 1.0,
+        "butterfly_yellow_opacity": 1.0,
+        "butterfly_orange_opacity": 1.0,
+        "hornwort_opacity": 1.0
+    },
+    "nature": {
+        "render_mode": "standalone_compatibility",
+        "physics_preset": "lively",
+        "interaction_strength": 1.0
+    },
+    "control_center": {
+        "pinned": false
+    },
+    "onboarding": {
+        "welcome_completed": false
     },
     "hotkeys": {
-        "toggle_visibility": "ctrl+alt+h",
-        "toggle_interactivity": "ctrl+alt+i"
+        "toggle_visibility": "ctrl+alt+h"
     },
     "app": {
         "version": "1.0.0"

@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Ohverlay · beta7 · 019.0</title>
+<style>
+:root{color-scheme:dark;--ink:#e0edef;--muted:#819da3;--line:#a5dde322;--panel:#0b2028ee;--accent:#e6bc49}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07171d;color:var(--ink);font:13px/1.5 system-ui,sans-serif}button,input{font:inherit}button{border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-height:39px;background:#132e38;color:var(--ink);cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,a:focus-visible,#world:focus-visible{outline:2px solid var(--accent);outline-offset:4px}.primary{background:#b2e1e7;color:#102831}.backdrop{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 67% 24%,#43276644,transparent 56%),linear-gradient(130deg,#090d1a,#152337 65%,#111422)}.backdrop::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(106deg,transparent 0 17%,#56899006 19% 22%,transparent 24% 31%);filter:blur(19px)}.header{position:fixed;top:28px;left:5vw;right:5vw;border-bottom:1px solid var(--line);padding-bottom:17px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}.brand{font-size:23px;letter-spacing:-1px;font-weight:600}.brand::before{content:"";display:inline-block;width:17px;height:3px;margin-right:10px;background:linear-gradient(90deg,#77e8f3 60%,#b04749 60%);vertical-align:middle}.label{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}.intro{position:fixed;top:23%;left:8vw;pointer-events:none}.intro h1{font:400 clamp(42px,5.5vw,74px)/1.05 Georgia,serif;letter-spacing:-2px;margin:17px 0}.intro em{color:#9ad5df}.intro p{font-size:12px;color:var(--muted);max-width:265px}#world{position:fixed;inset:0;width:100%;height:100%;z-index:2;touch-action:manipulation}.controls{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);width:min(940px,calc(100% - 28px));max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:16px;padding:15px 18px;background:var(--panel);z-index:4;box-shadow:0 10px 35px #0002}.row{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:11px}.row+.row{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}.slider{display:grid;gap:5px;width:112px}label{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px}output{color:var(--ink);font-variant-numeric:tabular-nums}input[type=range]{width:100%;margin:0;accent-color:var(--accent)}.foot{display:flex;justify-content:space-between;gap:15px;margin-top:12px;font-size:10px;color:var(--muted)}.restore{display:none;position:fixed;top:18px;right:18px;z-index:5;background:var(--panel)}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}#error{position:fixed;top:20%;left:10%;right:10%;z-index:10;padding:23px;border:1px solid #c7a783;border-radius:14px;background:var(--panel)}#error[hidden]{display:none}#error p{overflow-wrap:anywhere}.small{font-size:10px;color:var(--muted)}
+html.transparent,html.transparent body,html.object-only,html.object-only body{background:transparent!important}html.transparent .backdrop,html.object-only .backdrop{display:none}html.object-only .chrome{display:none}html.object-only .restore{display:block}html.no-controls .restore{display:none}html:fullscreen{width:100%;height:100%}html::backdrop{background:transparent}body.day{--ink:#163740;--muted:#526f77;--line:#234b5229;--panel:#dae7e9ed;--accent:#276a7c;background:#b3c8cd}body.day .backdrop{background:radial-gradient(ellipse at 60% 23%,#dfebed,#97b8bd 90%)}body.day button{background:#c2d8dd;color:#163740}body.day .intro em{color:#356c7c}
+@media(max-width:650px){.header{top:17px}.header .label{font-size:8px;letter-spacing:1px}.intro{top:16%;left:6vw}.intro h1{font-size:40px}.intro p{max-width:200px;font-size:11px}.controls{bottom:10px;padding:11px}.row{gap:8px}.slider{width:95px;flex:1 1 24%}button{font-size:11px;padding:7px 9px}.foot{font-size:9px}}@media(max-height:530px){.intro{display:none}.header{top:10px}.controls{bottom:8px;max-height:48vh}}
+#effects{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+<header class="header chrome"><span class="brand">ohverlay</span><span class="label">beta7 / Cobalt &amp; gold / 019.0</span></header>
+<div class="intro chrome" aria-hidden="true"><span class="label">A small life, in motion</span><h1>Color in<br><em>motion.</em></h1><p>Cobalt scales. Golden silk.<br>Highlights that follow the light.<br>One palette, softly reflective.</p></div>
+<canvas id="effects" aria-hidden="true"></canvas>
+<canvas id="world" tabindex="0" role="img" aria-label="Procedural cobalt-and-gold betta with an optional all-gold palette and view-dependent highlights" aria-describedby="instructions">WebGL support is required to display this fish.</canvas>
+<p id="instructions" class="sr-only">Click to suggest a swimming destination. Arrow keys move the suggestion; Home returns it to the center. Detail view pauses motion and enlarges one fish. Use the View angle slider to inspect it in three dimensions. Turn around demonstrates a head-led swimming arc, with a restrained rear-body bend. Burst demo, Visit surface, and Flare display preview separate behaviors. Actions requested during another action wait until it finishes. Fin study holds the body in a close-up while cycling hover, travel, and braking loads; View angle remains available. Rest study holds the fish at rest with moving microfins and settling macrofins. Rest drape adjusts the amount of collapse. Body detail enlarges the torso and scales while hiding the large fins for inspection. All gold switches to a single gold pigment palette. Light angle moves the simulated studio light; Surface shine adjusts highlights. Escape restores the hidden interface.</p>
+<section class="controls chrome" aria-label="Betta controls">
+<div class="row">
+<button id="pause" class="primary" type="button" aria-pressed="false" disabled>Pause motion</button>
+<button id="study" type="button" aria-pressed="false" disabled>Fin study</button>
+<button id="rest" type="button" aria-pressed="false" disabled>Rest study</button>
+<button id="bodydetail" type="button" aria-pressed="false" disabled>Body detail</button>
+<button id="detail" type="button" aria-pressed="false" disabled>Detail view</button>
+<button id="turn" type="button" disabled>Turn around</button>
+<div class="slider"><label for="count">Fish <output id="count-value">1</output></label><input id="count" type="range" min="1" max="3" step="1" value="1"></div>
+<div class="slider"><label for="size">Size <output id="size-value">100%</output></label><input id="size" type="range" min="50" max="170" step="5" value="100"></div>
+<div class="slider"><label for="speed">Swim speed <output id="speed-value">0.5×</output></label><input id="speed" type="range" min="0" max="1.5" step="0.1" value="0.5"></div>
+<div class="slider"><label for="transparency">Transparency <output id="transparency-value">0%</output></label><input id="transparency" type="range" min="0" max="100" step="5" value="0"></div>
+</div>
+<div class="row">
+<div class="slider"><label for="flex">Turn softness <output id="flex-value">85%</output></label><input id="flex" type="range" min="0" max="100" step="5" value="85"></div>
+<div class="slider"><label for="drape">Rest drape <output id="drape-value">85%</output></label><input id="drape" type="range" min="0" max="100" step="5" value="85"></div>
+<div class="slider"><label for="flow">Fin flow <output id="flow-value">65%</output></label><input id="flow" type="range" min="0" max="100" step="5" value="65"></div>
+<div class="slider"><label for="definition">Scale definition <output id="definition-value">85%</output></label><input id="definition" type="range" min="0" max="100" step="5" value="85"></div>
+<div class="slider"><label for="sheen">Surface shine <output id="sheen-value">65%</output></label><input id="sheen" type="range" min="0" max="100" step="5" value="65"></div>
+<div class="slider"><label for="iridescence">Edge sheen <output id="iridescence-value">100%</output></label><input id="iridescence" type="range" min="0" max="150" step="5" value="100"></div>
+<div class="slider"><label for="tempo">Motion tempo <output id="tempo-value">1.0×</output></label><input id="tempo" type="range" min="0.25" max="1" step="0.25" value="1"></div>
+<div class="slider"><label for="angle">View angle <output id="angle-value">0°</output></label><input id="angle" type="range" min="-180" max="180" step="1" value="0" disabled></div>
+<button id="gold" type="button" aria-pressed="false">All gold: off</button><div class="slider"><label for="light">Light angle <output id="light-value">−25°</output></label><input id="light" type="range" min="-90" max="90" step="1" value="-25"></div>
+<button id="burst" type="button" disabled>Burst demo</button><button id="surface" type="button" disabled>Visit surface</button><button id="display" type="button" disabled>Flare display</button><button id="breathing" type="button" aria-pressed="true">Surface visits: on</button><button id="encounters" type="button" aria-pressed="true">Encounters: on</button><button id="invite" type="button" disabled>Swim somewhere new</button><button id="background" type="button" aria-pressed="false">Transparent background</button><button id="theme" type="button" aria-pressed="false">Day backdrop</button><button id="fullscreen" type="button" aria-pressed="false">Fullscreen</button><button id="hide" type="button">Hide interface</button>
+</div>
+<div class="foot"><span id="status" role="status">Preparing the rendered fish…</span><span id="area"></span></div>
+<div class="small">beta7 · cobalt &amp; gold · simulated studio reflections, not desktop lighting</div>
+</section>
+<button id="restore" class="restore" type="button">Restore interface · Esc</button>
+<div id="error" role="alert" hidden><strong>The fish could not load.</strong><p id="error-message">Open the complete file in a browser with WebGL support.</p><button id="retry" type="button">Try again</button></div>
+<noscript>Enable JavaScript to display the betta.</noscript>
+<script id="fish-vertex" type="x-shader/x-vertex">
+precision highp float;
+attribute vec3 aPosition;
+attribute vec3 aNormal;
+attribute vec2 aUV;
+attribute vec2 aMotion;
+attribute float aMaterial;
+uniform mat3 uRotation;
+uniform vec3 uCenter;
+uniform vec2 uViewport;
+uniform float uScale;
+uniform float uAnchor;
+uniform float uPhase;
+uniform float uFinPhase;
+uniform float uFinFlow;
+uniform float uTurnBend;
+uniform float uTailBend;
+uniform float uEffort;
+uniform float uStill;
+uniform vec3 uFinAnchor;
+uniform vec3 uStroke;
+uniform vec3 uFinBend;
+uniform vec4 uDrape;
+uniform float uFinTwist;
+uniform float uPin;
+uniform float uSweep;
+uniform float uBillow;
+uniform mediump float uFlare;
+uniform float uKick;
+uniform mediump float uGulp;
+varying mediump vec3 vNormal;
+varying mediump vec3 vTangent;
+varying mediump vec3 vWorld;
+varying mediump vec3 vLocal;
+varying mediump vec2 vUV;
+varying mediump float vMaterial;
+varying mediump float vFold;
+vec3 feather(vec3 vector,float angle){
+ float cosine=cos(angle),sine=sin(angle);
+ return vec3(vector.x,cosine*vector.y-sine*vector.z,sine*vector.y+cosine*vector.z);
+}
+vec3 hinge(vec3 vector,float angle){
+ float cosine=cos(angle),sine=sin(angle);
+ return vec3(cosine*vector.x+sine*vector.z,vector.y,-sine*vector.x+cosine*vector.z);
+}
+vec3 drapeFin(vec3 point,vec2 uv,float freedom){
+ float amount=uDrape.x,kind=uDrape.w;
+ if(kind<0.5)return point;
+ vec3 delta=point-uFinAnchor;
+ float uneven=0.82+0.18*sin(uv.x*9.42477796+uDrape.z);
+ float waveBase=uv.x*15.707963+uDrape.z+uv.y*1.8;
+ float pleat=sin(waveBase)*0.55+sin(waveBase*2.1+0.7)*0.28+sin(waveBase*3.9-uv.y*3.2)*0.17;
+ float spread=amount*freedom;
+ if(kind<1.5){
+  delta.y*=1.0-amount*(0.43+0.14*smoothstep(-0.15,0.7,delta.y))*uneven;
+  delta.x*=1.0-0.10*spread;
+  delta.y-=0.19*spread*uneven;
+  delta.z+=spread*(0.22*pleat+uDrape.y*0.12)*uneven;
+ }else if(kind<2.5){
+  delta.x-=0.54*spread*uneven;
+  delta.y*=1.0-0.70*amount*uneven;
+  delta.y-=0.17*spread;
+  delta.z+=spread*(0.16*pleat+0.10+uDrape.y*0.10);
+ }else{
+  delta.x-=0.18*spread*uneven;
+  delta.y*=1.0+0.10*spread;
+  delta.y-=0.15*spread*uneven;
+  delta.z+=spread*(0.18*pleat-0.06+uDrape.y*0.08);
+ }
+ return uFinAnchor+delta;
+}
+float spineAngle(float distance){
+ return (uTurnBend*smoothstep(0.0,1.05,distance)+uTailBend*smoothstep(0.50,1.70,distance))*(1.0-uStill);
+}
+vec3 spineFrame(float distance){
+ vec2 path=vec2(0.0);
+ float sampleDistance=distance*0.0694318442,angle=spineAngle(sampleDistance);
+ path+=vec2(cos(angle),sin(angle))*0.1739274226;
+ sampleDistance=distance*0.3300094782;angle=spineAngle(sampleDistance);
+ path+=vec2(cos(angle),sin(angle))*0.3260725774;
+ sampleDistance=distance*0.6699905218;angle=spineAngle(sampleDistance);
+ path+=vec2(cos(angle),sin(angle))*0.3260725774;
+ sampleDistance=distance*0.9305681558;angle=spineAngle(sampleDistance);
+ path+=vec2(cos(angle),sin(angle))*0.1739274226;
+ return vec3(path*distance,spineAngle(distance));
+}
+void main(){
+ vec3 position=aPosition,normal=aNormal;
+ vFold=0.0;
+ float moving=1.0-uStill,freedom=aMotion.y*aMotion.y;
+ float macro=step(0.5,aMaterial)*(1.0-step(1.5,aMaterial));
+ float pectoral=step(3.5,aMaterial)*(1.0-step(4.5,aMaterial));
+ float cover=step(4.5,aMaterial)*(1.0-step(5.5,aMaterial));
+ float side=sign(uFinAnchor.z);
+ if(macro>0.5){
+  vec3 delta=position-uFinAnchor;
+  float rayWeight=0.75+0.25*sin(aUV.x*3.14159265);
+  float spread=1.0+moving*freedom*rayWeight*(-0.36*uSweep+0.10*uBillow+0.12*uFlare);
+  delta.y*=spread;delta.z*=spread;
+  delta.x+=moving*freedom*rayWeight*(-0.26*uSweep+0.05*uBillow);
+  position=uFinAnchor+delta;
+  normal=normalize(vec3(normal.x,normal.y/spread,normal.z/spread));
+  float span=smoothstep(0.0,1.0,aMotion.y),inverse=1.0-span;
+  float bend=3.0*inverse*inverse*span*uFinBend.x+3.0*inverse*span*span*uFinBend.y+span*span*span*uFinBend.z;
+  float bendSlope=3.0*inverse*inverse*uFinBend.x+6.0*inverse*span*(uFinBend.y-uFinBend.x)+3.0*span*span*(uFinBend.z-uFinBend.y);
+  position.z+=moving*(bend*rayWeight+uFinTwist*(aUV.x-0.5)*freedom);
+  normal=normalize(normal+moving*vec3(-bendSlope*0.22,-uFinTwist*(aUV.x-0.5),0.0));
+  float phase1=uFinPhase*2.0 - aMotion.y*5.5 + aUV.x*4.8;
+  float phase2=uFinPhase*3.6 - aMotion.y*10.2 + aUV.x*9.4;
+  float phase3=uFinPhase*5.4 - aMotion.y*17.0 + aUV.x*19.0;
+  float flow=uFinFlow*moving*(1.0-0.85*uFlare);
+  float ripple=sin(phase1)*0.068 + sin(phase2)*0.032 + sin(phase3)*0.016*smoothstep(0.35,1.0,aMotion.y);
+  position.z+=flow*freedom*ripple;
+  position.y+=flow*freedom*(sin(uFinPhase+aUV.x*7.5)*0.025 + sin(phase2)*0.014);
+  normal=normalize(normal+flow*freedom*vec3(-cos(phase1)*0.20,sin(phase1)*0.14,0.0));
+  position=mix(position,drapeFin(position,aUV,freedom),moving);
+  vFold=uDrape.x*freedom*moving;
+ }
+ if(pectoral>0.5){
+  vec3 delta=position-uFinAnchor;
+  float pin=uPin*moving,opening=mix(1.0,uStroke.z,moving);
+  delta.y*=opening;delta.z*=1.0-0.96*pin;delta.x-=0.10*pin*freedom;
+  delta.z+=side*0.018*freedom*sin(uFinPhase-aMotion.y*2.4+aUV.x*18.0)*moving*(1.0-pin);
+  delta=feather(delta,uStroke.y*moving);
+  delta=hinge(delta,uStroke.x*moving);
+  float clearance=0.035*smoothstep(0.0,0.30,aMotion.y),outward=side*delta.z-clearance;
+  float cushion=0.010*freedom;
+  delta.z=mix(delta.z,side*(clearance+0.5*(outward+sqrt(outward*outward+cushion*cushion))),moving);
+  position=uFinAnchor+delta;
+  normal=normalize(hinge(feather(vec3(normal.x,normal.y/max(0.25,opening),normal.z/max(0.04,1.0-0.96*pin)),uStroke.y*moving),uStroke.x*moving));
+ }
+ if(cover>0.5){
+  float opening=side*1.15*uFlare;
+  position=uFinAnchor+hinge(position-uFinAnchor,opening);
+  position.z+=side*0.004;
+  normal=hinge(normal,opening);
+ }
+ float amplitude=(0.005+0.016*uEffort)*moving;
+ float wave=sin(aPosition.x*4.1+uPhase);
+ float tail=clamp((0.25-aPosition.x)/1.3,0.0,1.0),slope=0.0;
+ if(aPosition.x>-1.05&&aPosition.x<0.25)slope=-6.0*tail*(1.0-tail)/1.3;
+ float distance=max(0.0,0.48-position.x);
+ vec3 spine=spineFrame(distance);float bendAngle=spine.z;
+ if(position.x<0.48){
+  position=vec3(0.48-spine.x+position.z*sin(bendAngle),position.y,spine.y+position.z*cos(bendAngle));
+  normal=hinge(normal,bendAngle);
+ }
+ float kickWave=sin((0.35-aPosition.x)*4.5);
+ position.z+=aMotion.x*(amplitude*wave+uKick*moving*kickWave);
+ float derivative=amplitude*(slope*wave+aMotion.x*4.1*cos(aPosition.x*4.1+uPhase));
+ derivative+=uKick*moving*(slope*kickWave-aMotion.x*4.5*cos((0.35-aPosition.x)*4.5));
+ normal=normalize(vec3(normal.x-derivative*normal.z,normal.y,normal.z));
+ if(aMaterial<0.5&&aPosition.y<0.065)position.y-=0.018*uGulp*moving*smoothstep(0.86,1.0,aPosition.x);
+ if(aMaterial<0.5&&aPosition.x>0.36&&aPosition.x<0.60){
+  float breathWave=pow(0.5+0.5*sin(uPhase*2.2),1.6);
+  float cheekZone=smoothstep(0.36,0.47,aPosition.x)*(1.0-smoothstep(0.52,0.60,aPosition.x));
+  position.z+=sign(aPosition.z)*0.006*breathWave*cheekZone*moving;
+ }
+ position.x-=uAnchor;
+ vec3 world=uRotation*position*uScale+uCenter;
+ float perspective=1.0-world.z/1100.0;
+ float depthBias=(cover>0.5)?-0.0015*perspective:0.0;
+ gl_Position=vec4(world.x*2.0/uViewport.x,world.y*2.0/uViewport.y,-world.z/600.0+depthBias,perspective);
+ vNormal=uRotation*normal;vTangent=uRotation*vec3(cos(bendAngle),0.0,-sin(bendAngle)+derivative);vWorld=world/1100.0;vLocal=aPosition;vUV=aUV;vMaterial=aMaterial;
+}
+</script>
+<script id="fish-fragment" type="x-shader/x-fragment">
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying mediump vec3 vNormal;
+varying mediump vec3 vTangent;
+varying mediump vec3 vWorld;
+varying mediump vec3 vLocal;
+varying mediump vec2 vUV;
+varying mediump float vMaterial;
+varying mediump float vFold;
+uniform float uOpacity;
+uniform float uSheen;
+uniform float uDefinition;
+uniform mediump float uFinKind;
+uniform float uIridescence;
+uniform mediump float uAllGold;
+uniform mediump float uBreed;
+uniform float uLightAngle;
+uniform mediump float uFlare;
+uniform mediump float uGulp;
+uniform float uPhase;
+const float PI=3.14159265;
+float hash(vec2 point){return fract(sin(dot(point,vec2(17.17,71.23)))*157.31);}
+float field(vec2 point){
+ vec2 cell=floor(point),fraction=fract(point);fraction=fraction*fraction*(3.0-2.0*fraction);
+ return mix(mix(hash(cell),hash(cell+vec2(1.0,0.0)),fraction.x),mix(hash(cell+vec2(0.0,1.0)),hash(cell+vec2(1.0,1.0)),fraction.x),fraction.y);
+}
+vec3 fresnel(float cosine,vec3 base){return base+(1.0-base)*pow(1.0-clamp(cosine,0.0,1.0),5.0);}
+vec3 keyLight(){return normalize(vec3(sin(uLightAngle)*0.85,0.72,cos(uLightAngle)*0.65+0.40));}
+vec3 studio(vec3 direction){
+ float upper=smoothstep(-0.5,0.85,direction.y);
+ vec3 ambient=mix(vec3(0.027,0.046,0.055),vec3(0.20,0.26,0.29),upper);
+ float panel=pow(max(dot(direction,keyLight()),0.0),22.0);
+ return ambient+vec3(0.62,0.73,0.70)*panel;
+}
+vec3 lightBRDF(vec3 normal,vec3 view,vec3 light,vec3 base,float metal,float rough){
+ vec3 halfway=normalize(view+light);
+ float normalLight=max(dot(normal,light),0.0),normalView=max(dot(normal,view),0.001);
+ float normalHalf=max(dot(normal,halfway),0.0),viewHalf=max(dot(view,halfway),0.0);
+ float alpha=rough*rough,alpha2=alpha*alpha;
+ float denominator=normalHalf*normalHalf*(alpha2-1.0)+1.0;
+ float distribution=alpha2/max(PI*denominator*denominator,0.0001);
+ float geometryFactor=(rough+1.0)*(rough+1.0)/8.0;
+ float visibility=(normalView/(normalView*(1.0-geometryFactor)+geometryFactor))*(normalLight/(normalLight*(1.0-geometryFactor)+geometryFactor));
+ vec3 reflectance=fresnel(viewHalf,mix(vec3(0.04),base,metal));
+ vec3 specular=distribution*visibility*reflectance/max(4.0*normalView*normalLight,0.001);
+ return ((1.0-reflectance)*(1.0-metal)*base/PI+specular)*normalLight;
+}
+void main(){
+ vec3 normal=normalize(vNormal),view=normalize(vec3(0.0,0.0,1.0)-vWorld);
+ float normalView=abs(dot(normal,view));
+ float isMustard  =step(-0.5,uBreed)*(1.0-step(0.5,uBreed));
+ float isKoi      =step(0.5,uBreed)*(1.0-step(1.5,uBreed));
+ float isSamurai  =step(1.5,uBreed)*(1.0-step(2.5,uBreed));
+ float isRed      =step(2.5,uBreed)*(1.0-step(3.5,uBreed));
+ float isBlue     =step(3.5,uBreed)*(1.0-step(4.5,uBreed));
+ float isCopper   =step(4.5,uBreed)*(1.0-step(5.5,uBreed));
+ float isButtercup=step(5.5,uBreed)*(1.0-step(6.5,uBreed));
+ float isSunburst =step(6.5,uBreed)*(1.0-step(7.5,uBreed));
+ float isGlass    =step(7.5,uBreed);
+ if(vMaterial>4.5&&vMaterial<5.5){
+  vec3 pMustard=mix(vec3(0.012,0.038,0.18),vec3(0.65,0.32,0.008),uAllGold);
+  float calico=field(vec2(vLocal.x*9.0,vLocal.y*13.0)+3.4);
+  vec3 pKoi=mix(vec3(0.88,0.85,0.80),mix(vec3(0.76,0.04,0.06),vec3(0.02,0.02,0.03),step(0.65,calico)),step(0.46,calico));
+  vec3 pSamurai=vec3(0.020,0.022,0.028);
+  vec3 pRed=vec3(0.72,0.035,0.045);
+  vec3 pBlue=vec3(0.018,0.20,0.76);
+  vec3 pCopper=vec3(0.68,0.32,0.11);
+  vec3 pButtercup=mix(vec3(0.97,0.95,0.90),vec3(1.0,0.86,0.52),0.55);
+  vec3 pSunburst=mix(vec3(0.012,0.04,0.28),vec3(0.08,0.82,0.98),0.75);
+  vec3 pGlass=mix(vec3(0.04,0.85,0.95),vec3(0.65,0.25,1.0),0.5+0.5*sin(uPhase*2.5));
+  vec3 plateColor=pMustard*isMustard+pKoi*isKoi+pSamurai*isSamurai+pRed*isRed+pBlue*isBlue+pCopper*isCopper+pButtercup*isButtercup+pSunburst*isSunburst+pGlass*isGlass;
+  float normalLight=max(dot(normal,keyLight()),0.0);
+  vec3 halfway=normalize(view+keyLight());
+  float spec=pow(max(dot(normal,halfway),0.0),26.0)*normalLight;
+  float rimEdge=smoothstep(0.72,1.0,vUV.y);
+  vec3 gillLining=mix(vec3(0.38,0.015,0.025),vec3(0.08,0.012,0.015),0.45);
+  vec3 plate=mix(plateColor*(0.45+0.55*normalLight)+vec3(0.95,0.96,1.0)*spec*(0.22+0.32*uSheen),gillLining,rimEdge*(0.65+0.35*uFlare));
+  gl_FragColor=vec4(plate,uOpacity*uFlare*mix(0.96,0.35,isGlass));return;
+ }
+  if((vMaterial>0.5&&vMaterial<1.5)||(vMaterial>3.5&&vMaterial<4.5)){
+#ifdef HAS_DERIVATIVES
+   vec3 surfaceNormal=cross(dFdx(vWorld),dFdy(vWorld));
+   if(dot(surfaceNormal,surfaceNormal)>0.00000000000001)normal=normalize(surfaceNormal);
+#endif
+   if(dot(normal,view)<0.0)normal=-normal;
+   float rayW0=0.046,rayW1=0.036,rayW2=0.028,rayW3=0.022;
+#ifdef HAS_DERIVATIVES
+   rayW0=max(rayW0,fwidth(vUV.x*24.0)*0.55);
+   rayW1=max(rayW1,fwidth(vUV.x*48.0)*0.55);
+   rayW2=max(rayW2,fwidth(vUV.x*96.0)*0.55);
+   rayW3=max(rayW3,fwidth(vUV.x*192.0)*0.55);
+#endif
+   float r0=1.0-smoothstep(rayW0*0.45,rayW0*1.9,abs(fract(vUV.x*24.0+0.5)-0.5));
+   float r1=1.0-smoothstep(rayW1*0.45,rayW1*1.9,abs(fract(vUV.x*48.0+0.5)-0.5));
+   float r2=1.0-smoothstep(rayW2*0.45,rayW2*1.9,abs(fract(vUV.x*96.0+0.5)-0.5));
+   float r3=1.0-smoothstep(rayW3*0.45,rayW3*1.9,abs(fract(vUV.x*192.0+0.5)-0.5));
+   float rays=r0;
+   rays=mix(rays,max(rays*0.75,r1),smoothstep(0.18,0.40,vUV.y));
+   rays=mix(rays,max(rays*0.70,r2),smoothstep(0.44,0.68,vUV.y));
+   rays=mix(rays,max(rays*0.65,r3),smoothstep(0.70,0.92,vUV.y));
+   float billow1=sin(vUV.x*16.0*PI+vUV.y*2.2);
+   float billow2=sin(vUV.x*36.0*PI-vUV.y*3.1+sin(vUV.x*8.0));
+   float pleat=0.5+0.34*billow1+0.16*billow2;
+   float grain=field(vec2(vUV.x*95.0,vUV.y*48.0));
+   float marble=field(vec2(vUV.x*36.0,vUV.y*24.0))*0.6+field(vec2(vUV.x*80.0,vUV.y*52.0))*0.4;
+   vec2 speckCell=floor(vec2(vUV.x*260.0,vUV.y*150.0));
+   float speckH=hash(speckCell);
+   vec2 speckOffset=fract(vec2(vUV.x*260.0,vUV.y*150.0))-0.5;
+   float speckDist=length(speckOffset);
+   float isIridophore=step(0.80,speckH);
+   float iridSparkle=(1.0-smoothstep(0.08,0.38,speckDist))*isIridophore;
+   float isStardust=step(0.42,speckH)*(1.0-step(0.66,speckH));
+   float goldDust=(1.0-smoothstep(0.10,0.42,speckDist))*isStardust;
+   float fringe=smoothstep(0.83,0.99,vUV.y),root=smoothstep(0.02,0.15,vUV.y);
+   float pectoral=step(3.5,vMaterial);
+   float dorsal=step(1.5,uFinKind)*(1.0-step(2.5,uFinKind));
+   float anal=step(2.5,uFinKind)*(1.0-step(3.5,uFinKind));
+   float rootReach=0.28+0.18*dorsal-0.10*anal+0.22*r0;
+   float blueRoot=1.0-smoothstep(rootReach-0.14,rootReach+0.16,vUV.y+0.04*(grain-0.5));
+   float blueEdge=smoothstep(0.93,1.0,vUV.y)*(0.35+0.65*r2);
+   float blueMask=clamp(blueRoot+blueEdge*0.65,0.0,1.0)*(1.0-uAllGold);
+   blueMask=mix(blueMask,blueEdge*0.75*(1.0-uAllGold),pectoral);
+    vec3 goldMustard=mix(vec3(0.96,0.52,0.008),vec3(1.0,0.84,0.03),0.32+0.42*pleat+marble*0.26);
+    float finCalico=field(vec2(vUV.x*14.0,vUV.y*9.0)+2.3);
+    vec3 goldKoi=mix(vec3(0.92,0.89,0.86),vec3(0.78,0.05,0.08),step(0.48,finCalico));
+    goldKoi=mix(goldKoi,vec3(0.02,0.02,0.03),step(0.70,finCalico));
+    vec3 goldSamurai=mix(vec3(0.025,0.028,0.035),vec3(0.07,0.075,0.09),0.3+0.7*pleat);
+    goldSamurai=mix(goldSamurai,vec3(0.85,0.88,0.95),smoothstep(0.88,0.99,vUV.y)*0.6);
+    vec3 goldRed=mix(vec3(0.85,0.04,0.03),vec3(1.0,0.22,0.05),0.35+0.45*pleat+marble*0.2);
+    vec3 goldBlue=mix(vec3(0.02,0.38,0.78),vec3(0.08,0.78,0.95),0.35+0.45*pleat+marble*0.2);
+    vec3 goldCopper=mix(vec3(0.82,0.38,0.06),vec3(0.98,0.68,0.14),0.35+0.45*pleat+marble*0.2);
+    float butterRoot=1.0-smoothstep(0.08,0.46,vUV.y);
+    vec3 goldButtercup=mix(vec3(0.97,0.96,0.94),vec3(1.0,0.84,0.38),butterRoot*0.94);
+    goldButtercup=mix(goldButtercup,vec3(1.0,0.80,0.30),pectoral);
+    float sunRootZone=1.0-smoothstep(0.14,0.32,vUV.y);
+    float sunRedZone=smoothstep(0.16,0.30,vUV.y)*(1.0-smoothstep(0.56,0.68,vUV.y));
+    float sunSmokeRim=smoothstep(0.56,0.70,vUV.y);
+    vec3 cSunRoot=mix(vec3(0.012,0.038,0.20),vec3(0.06,0.55,0.92),rays*0.75);
+    vec3 cSunRed=mix(vec3(0.95,0.12,0.02),vec3(1.0,0.26,0.05),0.35+0.45*pleat+marble*0.2);
+    vec3 cSunSmoke=mix(vec3(0.032,0.026,0.036),vec3(0.075,0.065,0.095),0.3+0.7*pleat);
+    vec3 goldSunburst=cSunRoot*sunRootZone+cSunRed*sunRedZone+cSunSmoke*sunSmokeRim;
+    if(anal>0.5){
+     float analDark=smoothstep(0.52,0.84,vUV.y);
+     goldSunburst=mix(cSunRed,vec3(0.015,0.028,0.12),analDark);
+    }
+    if(dorsal>0.5){
+     float dorsalDark=smoothstep(0.60,0.88,vUV.y);
+     goldSunburst=mix(mix(cSunRoot,cSunRed,smoothstep(0.20,0.45,vUV.y)),cSunSmoke,dorsalDark);
+    }
+    if(pectoral<0.5&&dorsal<0.5&&anal<0.5&&uFinKind>3.5){
+     goldSunburst=mix(vec3(0.96,0.14,0.03),vec3(0.08,0.82,0.98),smoothstep(0.70,0.96,vUV.y));
+    }
+    float finBioPhase=uPhase*2.8-(vUV.x*8.0+vUV.y*3.5);
+    vec3 ctenoWave=0.5+0.5*cos(finBioPhase+vec3(0.0,2.1,4.2));
+    vec3 goldGlass=mix(vec3(0.005,0.025,0.06),vec3(0.012,0.050,0.11),pleat);
+    goldGlass+=ctenoWave*smoothstep(0.85,0.99,vUV.y)*0.60;
+    vec3 gold=goldMustard*isMustard+goldKoi*isKoi+goldSamurai*isSamurai+goldRed*isRed+goldBlue*isBlue+goldCopper*isCopper+goldButtercup*isButtercup+goldSunburst*isSunburst+goldGlass*isGlass;
+    gold=mix(gold,vec3(1.0,0.92,0.45),(goldDust*0.65*(1.0-isSamurai)+isSamurai*goldDust*vec3(0.9,0.95,1.0)*0.8)*(1.0-isGlass));
+    vec3 cobaltMustard=mix(vec3(0.006,0.038,0.180),vec3(0.030,0.28,0.78),rays*0.50+marble*0.30);
+    vec3 cobaltKoi    =mix(vec3(0.75,0.04,0.06),vec3(0.02,0.02,0.03),step(0.5,finCalico));
+    vec3 cobaltSamurai=mix(vec3(0.015,0.018,0.022),vec3(0.80,0.84,0.92),rays*0.65);
+    vec3 cobaltRed    =mix(vec3(0.35,0.008,0.012),vec3(0.78,0.04,0.04),rays*0.55);
+    vec3 cobaltBlue   =mix(vec3(0.005,0.04,0.28),vec3(0.03,0.18,0.72),rays*0.50);
+    vec3 cobaltCopper =mix(vec3(0.10,0.22,0.18),vec3(0.48,0.22,0.06),rays*0.50);
+    vec3 cobaltButtercup=mix(vec3(0.99,0.98,0.96),vec3(1.0,0.88,0.52),butterRoot);
+    vec3 cyanRay=mix(vec3(0.06,0.82,0.98),vec3(0.45,0.95,1.0),rays*0.6);
+    vec3 cobaltSunburst=mix(cyanRay,cSunSmoke,sunSmokeRim*0.90);
+    vec3 cyanLaser=mix(vec3(0.05,0.98,0.92),vec3(0.65,0.30,1.0),0.5+0.5*sin(uPhase*3.2+vUV.x*24.0));
+    vec3 cobaltGlass=cyanLaser*(0.85+0.50*sin(uPhase*4.0-vUV.y*7.5));
+    vec3 cobalt=cobaltMustard*isMustard+cobaltKoi*isKoi+cobaltSamurai*isSamurai+cobaltRed*isRed+cobaltBlue*isBlue+cobaltCopper*isCopper+cobaltButtercup*isButtercup+cobaltSunburst*isSunburst+cobaltGlass*isGlass;
+    cobalt=mix(cobalt,vec3(0.20,0.75,0.98),(iridSparkle*0.70*(1.0-isButtercup)+isButtercup*iridSparkle*vec3(1.0,0.95,0.75)*0.6)*(1.0-isGlass));
+    vec3 pigment=mix(gold,cobalt,mix(mix(blueMask*(1.0-isButtercup),rays*0.88,isSunburst),rays*0.95+0.15*ctenoWave.x,isGlass));
+    pigment*=1.0-rays*0.10;
+    float normalLight=max(dot(normal,keyLight()),0.0);
+    float rim=pow(1.0-clamp(dot(normal,view),0.0,1.0),3.0);
+    vec3 halfway=normalize(view+keyLight());
+    float highlight=pow(max(dot(normal,halfway),0.0),mix(32.0,120.0,rays))*normalLight;
+    float forwardTrans=pow(max(dot(-view,keyLight()),0.0),2.6);
+    float membraneThinness=(1.0-rays*0.55)*smoothstep(0.02,0.25,vUV.y);
+    vec3 transMustard=mix(vec3(1.0,0.65,0.12),vec3(0.10,0.48,0.85),blueMask*0.75);
+    vec3 transKoi    =vec3(1.0,0.45,0.42);
+    vec3 transSamurai=vec3(0.25,0.32,0.45);
+    vec3 transRed    =vec3(1.0,0.15,0.03);
+    vec3 transBlue   =vec3(0.08,0.65,0.95);
+    vec3 transCopper =vec3(1.0,0.55,0.08);
+    vec3 transButtercup=mix(vec3(0.98,0.97,0.94),vec3(1.0,0.88,0.58),butterRoot);
+    vec3 transSunburst=mix(vec3(1.0,0.18,0.04),vec3(0.12,0.72,0.95),sunRootZone);
+    vec3 transGlass  =mix(vec3(0.08,0.98,0.88),vec3(0.75,0.22,1.0),0.5+0.5*sin(uPhase*2.5));
+    vec3 transColor=transMustard*isMustard+transKoi*isKoi+transSamurai*isSamurai+transRed*isRed+transBlue*isBlue+transCopper*isCopper+transButtercup*isButtercup+transSunburst*isSunburst+transGlass*isGlass;
+    vec3 subsurfaceGlow=transColor*forwardTrans*membraneThinness*1.45*(0.75+0.35*pleat);
+    vec3 reflMustard=mix(vec3(1.0,0.84,0.34),vec3(0.35,0.75,1.0),blueMask);
+    vec3 reflKoi    =vec3(0.95,0.90,0.92);
+    vec3 reflSamurai=vec3(0.92,0.95,1.0);
+    vec3 reflRed    =vec3(1.0,0.45,0.38);
+    vec3 reflBlue   =vec3(0.35,0.85,1.0);
+    vec3 reflCopper =vec3(0.95,0.75,0.42);
+    vec3 reflButtercup=vec3(1.0,0.98,0.92);
+    vec3 reflSunburst =mix(vec3(0.95,0.35,0.15),vec3(0.25,0.85,1.0),sunRootZone+rays*0.5);
+    vec3 reflGlass    =mix(vec3(0.15,0.95,1.0),vec3(0.95,0.35,1.0),0.5+0.5*cos(finBioPhase));
+    vec3 reflection=reflMustard*isMustard+reflKoi*isKoi+reflSamurai*isSamurai+reflRed*isRed+reflBlue*isBlue+reflCopper*isCopper+reflButtercup*isButtercup+reflSunburst*isSunburst+reflGlass*isGlass;
+    vec3 fin=pigment*(0.36+0.64*normalLight)*(0.96-0.18*vFold)+subsurfaceGlow;
+    fin+=reflection*highlight*(0.14+0.95*uSheen)*(0.35+0.65*rays);
+    fin+=reflection*studio(reflect(-view,normal))*rim*mix(0.48,0.12,isGlass)*uIridescence;
+    vec3 finCteno=ctenoWave*smoothstep(0.85,0.99,vUV.y)*1.6;
+    fin+=isGlass*(cyanLaser*rays*2.2+finCteno);
+    float normalFinAlpha=mix(mix(0.96, 0.72+0.12*rays+0.04*fringe, smoothstep(0.0, 0.22, vUV.y)), 0.32+0.25*rays+0.12*rim, pectoral);
+    float glassFinAlpha=mix(0.05, 0.85, clamp(rays*0.90+smoothstep(0.86,0.99,vUV.y)*0.45, 0.0, 1.0));
+    float finAlpha=mix(normalFinAlpha, glassFinAlpha, isGlass)*uOpacity;
+    fin=fin/(vec3(1.0)+fin*0.30);
+    gl_FragColor=vec4(pow(max(fin,vec3(0.0)),vec3(0.4545)),clamp(finAlpha,0.0,0.95));return;
+  }
+  vec3 base;float metal,rough;float glints=0.0,band=0.0;
+  float plate=0.0,scaleRim=0.0;
+  vec3 glassEmission=vec3(0.0);
+  if(vMaterial>2.5&&vMaterial<3.5){base=vec3(0.004,0.008,0.010);metal=0.05;rough=0.13;}
+  else if(vMaterial>1.5&&vMaterial<2.5){
+   float sparkle=0.5+0.5*sin(vUV.x*92.0+sin(vUV.y*24.0)*2.0);
+   vec3 irisStd=mix(vec3(0.035,0.045,0.075),vec3(0.24,0.29,0.39),sparkle);
+   vec3 irisButter=mix(vec3(0.95,0.80,0.45),vec3(1.0,0.92,0.65),sparkle);
+   base=mix(irisStd,irisButter,step(5.5,uBreed));
+   vec3 irisGlass=mix(vec3(0.08,0.98,0.92),vec3(0.75,0.25,1.0),sparkle);
+   base=mix(base,irisGlass,step(7.5,uBreed));metal=0.32;rough=0.24;
+  }else{
+   plate=step(5.5,vMaterial);
+   vec2 bodyUV=vec2((vLocal.x+1.0)*0.5,atan(vLocal.z,vLocal.y)*0.15915494+0.5);
+   vec2 cell=plate>0.5?floor(vUV*0.5):floor(bodyUV*vec2(32.0,20.0));
+   vec2 tile=mod(vUV,2.0)*2.0-1.0;
+   float grain=hash(cell),orientation=hash(cell+vec2(19.7,3.1));
+   float radius=length(tile),footprint=0.08;
+#ifdef HAS_DERIVATIVES
+   footprint=max(fwidth(tile.x),fwidth(tile.y));
+#endif
+   float detail=1.0-smoothstep(0.6,1.7,footprint);
+   float lipWidth=max(0.05,footprint*0.7);
+   float exposedEdge=1.0-smoothstep(-0.30,0.25,tile.x);
+   scaleRim=smoothstep(0.78-lipWidth,0.96,radius)*plate*detail*(0.40+0.60*exposedEdge);
+   float scaleLip=(1.0-smoothstep(lipWidth,lipWidth*2.0,abs(radius-0.73)))*plate*detail*(0.45+0.55*exposedEdge);
+   float height=vLocal.y,head=smoothstep(0.45,0.87,vLocal.x);
+   float belly=1.0-smoothstep(-0.20,0.04,height),back=smoothstep(0.11,0.35,height);
+   float blush=field(vec2(vLocal.x*8.0,height*17.0));
+   float bioMottle=field(vec2(vLocal.x*18.0,height*24.0));
+    vec3 scaleTone=mix(vec3(0.88,0.95,1.14),vec3(1.12,0.96,0.86),orientation);
+    
+    // Breed 0: Mustard Gas
+    vec3 bMustard=mix(vec3(0.005,0.024,0.12),vec3(0.022,0.14,0.58),0.40+back*0.48-belly*0.25)*scaleTone;
+    bMustard=mix(bMustard,mix(vec3(0.48,0.22,0.004),vec3(0.95,0.56,0.012),0.40+back*0.40)*scaleTone,uAllGold);
+    
+    // Breed 1: Galaxy Koi
+    float bodyCalico1=field(vec2(vLocal.x*7.0,height*14.0)+1.7);
+    float bodyCalico2=field(vec2(vLocal.x*12.0,height*22.0)+8.1);
+    float isRedBody=step(0.50,bodyCalico1);
+    float isBlackBody=step(0.65,bodyCalico2)*(1.0-isRedBody);
+    vec3 bKoi=mix(vec3(0.88,0.86,0.82),vec3(0.76,0.04,0.06),isRedBody);
+    bKoi=mix(bKoi,vec3(0.015,0.016,0.022),isBlackBody);
+    
+    // Breed 2: Black Samurai
+    float armorZone=smoothstep(-0.02,0.12,height)*(1.0-smoothstep(0.70,0.95,vLocal.x))+smoothstep(0.45,0.85,vLocal.x)*smoothstep(-0.05,0.18,height);
+    vec3 bSamurai=mix(vec3(0.015,0.018,0.022),vec3(0.86,0.89,0.93)*(0.85+0.15*grain),armorZone);
+    
+    // Breed 3: Super Red
+    vec3 bRed=mix(vec3(0.32,0.008,0.012),vec3(0.80,0.04,0.045),0.40+back*0.48-belly*0.20)*scaleTone;
+    
+    // Breed 4: Royal Blue
+    vec3 bBlue=mix(vec3(0.006,0.055,0.32),vec3(0.025,0.28,0.88),0.40+back*0.48-belly*0.25)*scaleTone;
+    
+    // Breed 5: Dragon Copper
+    vec3 bCopper=mix(vec3(0.45,0.20,0.06),vec3(0.72,0.36,0.12),0.40+back*0.48-belly*0.20)*scaleTone;
+    bCopper=mix(bCopper,vec3(0.08,0.72,0.52),pow(1.0-clamp(normalView,0.0,1.0),2.8)*0.45*plate);
+    
+    // Breed 6: Platinum Buttercup (Pastel Cream Halfmoon)
+    vec3 bButtercup=mix(vec3(0.96,0.94,0.88),vec3(0.99,0.96,0.91),0.50+back*0.40-belly*0.20)*scaleTone;
+    vec3 butterBlush=vec3(0.98,0.84,0.62);
+    bButtercup=mix(bButtercup,butterBlush,head*0.45*(0.60+0.40*blush));
+
+    // Breed 7: Sunburst Butterfly (Tri-Band Halfmoon)
+    vec3 bSunburst=mix(vec3(0.005,0.038,0.30),vec3(0.020,0.24,0.84),0.40+back*0.48-belly*0.25)*scaleTone;
+    vec3 sunburstCheek=vec3(0.08,0.82,0.98);
+    bSunburst=mix(bSunburst,sunburstCheek,smoothstep(0.48,0.82,vLocal.x)*(1.0-smoothstep(0.82,0.98,vLocal.x))*smoothstep(-0.10,0.10,height)*0.75);
+
+    // Breed 8: Abyssal Glass (Deep-sea Bioluminescent Glass Betta)
+    float spineY=mix(0.02,0.055,smoothstep(-0.85,0.0,vLocal.x));
+    float spineDist=abs(height-spineY);
+    float spineMask=(1.0-smoothstep(0.008,0.038,spineDist))*(1.0-smoothstep(0.38,0.56,vLocal.x))*smoothstep(-0.88,-0.68,vLocal.x);
+    float vertebrae=0.5+0.5*sin(vLocal.x*68.0);
+    vec3 spineColor=mix(vec3(0.05,1.0,0.92),vec3(0.70,0.25,1.0),0.5+0.5*sin(uPhase*2.8+vLocal.x*6.5));
+    vec3 spineGlow=spineColor*spineMask*(1.4+0.9*vertebrae);
+
+    float ribWave=pow(max(0.0,sin(vLocal.x*54.0-(spineY-height)*16.0)),6.0);
+    float ribZone=smoothstep(-0.80,-0.38,vLocal.x)*(1.0-smoothstep(0.20,0.44,vLocal.x))*smoothstep(-0.25,-0.05,height)*(1.0-smoothstep(spineY-0.02,spineY+0.02,height));
+    vec3 ribsGlow=mix(vec3(0.06,0.92,0.95),vec3(0.35,0.50,1.0),0.5+0.5*sin(vLocal.x*10.0+uPhase*2.0))*ribWave*ribZone*1.8;
+
+    float visceraDist=length(vec2(vLocal.x-0.26,(height+0.06)*1.55));
+    float visceraMask=1.0-smoothstep(0.03,0.13,visceraDist);
+    float visceraPulse=0.72+0.35*sin(uPhase*3.6);
+    vec3 visceraColor=mix(vec3(0.0,1.0,0.72),vec3(0.85,0.15,0.95),0.5+0.5*sin(uPhase*2.2+visceraDist*16.0))*visceraPulse*3.6;
+
+    float latNodeDist=abs(height-spineY);
+    float latNodes=pow(max(0.0,sin(vLocal.x*56.0)),12.0)*(1.0-smoothstep(0.007,0.024,latNodeDist))*(1.0-smoothstep(0.38,0.60,vLocal.x))*smoothstep(-0.85,-0.65,vLocal.x);
+    vec3 photophoreColor=vec3(0.12,1.0,0.92)*latNodes*3.6;
+
+    float bodyCtenoPhase=uPhase*2.8-vLocal.x*7.5;
+    vec3 bodyRainbow=0.5+0.5*cos(bodyCtenoPhase+vec3(0.0,2.1,4.2));
+    float crestCilia=(smoothstep(0.14,0.36,height)+(1.0-smoothstep(-0.25,-0.06,height)))*(0.65+0.35*sin(vLocal.x*62.0));
+    vec3 combGlow=bodyRainbow*crestCilia*2.0;
+
+    glassEmission=spineGlow*1.8+ribsGlow*1.4+visceraColor*visceraMask+photophoreColor+combGlow;
+    vec3 bGlass=mix(vec3(0.008,0.045,0.11),vec3(0.02,0.12,0.28),0.5+0.5*normalView);
+    
+    base=bMustard*isMustard+bKoi*isKoi+bSamurai*isSamurai+bRed*isRed+bBlue*isBlue+bCopper*isCopper+bButtercup*isButtercup+bSunburst*isSunburst+bGlass*isGlass;
+    base*=1.0-head*(0.45+0.16*blush)*(1.0-isSamurai*armorZone)*(1.0-isButtercup*0.75)*(1.0-isGlass*0.80);
+    base*=0.92+0.18*bioMottle;
+    base*=1.0+(grain-0.5)*0.16*plate*detail;
+    vec3 edge=mix(vec3(0.002,0.008,0.038),vec3(0.25,0.095,0.001),uAllGold);
+    edge=mix(edge,vec3(0.85,0.72,0.52),isButtercup);
+    edge=mix(edge,vec3(0.002,0.010,0.045),isSunburst);
+    edge=mix(edge,vec3(0.05,0.90,0.95),isGlass);
+    base=mix(base,edge,scaleRim*(0.18+0.52*uDefinition));
+    
+    vec3 rimMustard  =mix(vec3(0.06,0.38,0.82),vec3(0.75,0.55,0.08),uAllGold);
+    vec3 rimKoi      =mix(vec3(0.20,0.82,0.90),vec3(0.92,0.55,0.15),grain);
+    vec3 rimSamurai  =vec3(0.95,0.98,1.0);
+    vec3 rimRed      =vec3(0.98,0.28,0.08);
+    vec3 rimBlue     =vec3(0.12,0.85,0.98);
+    vec3 rimCopper   =vec3(0.90,0.58,0.18);
+    vec3 rimButtercup=vec3(0.96,0.84,0.52);
+    vec3 rimSunburst =vec3(0.10,0.82,0.98);
+    vec3 rimGlass    =mix(vec3(0.10,0.98,0.92),vec3(0.75,0.30,1.0),0.5+0.5*cos(uPhase*2.5-vLocal.x*5.0));
+    vec3 dragonRim   =rimMustard*isMustard+rimKoi*isKoi+rimSamurai*isSamurai+rimRed*isRed+rimBlue*isBlue+rimCopper*isCopper+rimButtercup*isButtercup+rimSunburst*isSunburst+rimGlass*isGlass;
+    base+=dragonRim*scaleLip*(0.30+0.55*uDefinition);
+    
+    vec2 cheekUV=vec2(vLocal.x*48.0,height*37.0);
+    cheekUV.x+=mod(floor(cheekUV.y),2.0)*0.5;
+    vec2 cheekCell=floor(cheekUV),cheekTile=fract(cheekUV)-0.5;
+    float cheekGrain=hash(cheekCell);
+    cheekTile+=vec2(cheekGrain-0.5,hash(cheekCell+3.1)-0.5)*0.08;
+    float cheekFootprint=0.10;
+#ifdef HAS_DERIVATIVES
+    cheekFootprint=max(fwidth(cheekUV.x),fwidth(cheekUV.y));
+#endif
+    float cheekDetail=1.0-smoothstep(0.65,1.5,cheekFootprint);
+    float cheekRadius=length(cheekTile*vec2(1.0,1.12));
+    float cheekWidth=max(0.025,cheekFootprint*0.18);
+    float cheekRim=1.0-smoothstep(cheekWidth,cheekWidth*2.0,abs(cheekRadius-0.43));
+    float cheekMask=smoothstep(0.47,0.60,vLocal.x)*(1.0-smoothstep(0.85,0.94,vLocal.x));
+    cheekMask*=(1.0-smoothstep(0.16,0.25,abs(height+0.02)))*(1.0-plate)*cheekDetail;
+    base=mix(base,mix(edge,base,cheekGrain),cheekMask*cheekRim*(0.05+0.20*uDefinition));
+    float gillX=0.47+0.14*pow((height+0.015)/0.29,2.0);
+    float breathWave=pow(0.5+0.5*sin(uPhase*2.2),1.8);
+    float gillW=mix(0.003,0.009,breathWave);
+    float gill=(1.0-smoothstep(gillW,gillW+0.012,abs(vLocal.x-gillX)))*(1.0-smoothstep(0.20,0.29,abs(height)));
+    vec3 gillLining=mix(vec3(0.38,0.015,0.025),vec3(0.08,0.012,0.015),0.45);
+    base=mix(base*(1.0-gill*(0.17+0.08*(1.0-back))),gillLining,gill*0.70*breathWave);
+    float mouthLine=0.081+0.022*smoothstep(0.92,1.0,vLocal.x);
+    float mouth=smoothstep(0.92,0.995,vLocal.x)*(1.0-smoothstep(0.002,0.007+uGulp*0.004,abs(height-mouthLine)));
+    base=mix(base,edge*0.5,mouth*0.55);
+    
+    float breedMetal=0.32*isMustard+0.22*isKoi+mix(0.12,0.85,armorZone)*isSamurai+0.16*isRed+0.42*isBlue+0.65*isCopper+0.12*isButtercup+0.42*isSunburst+0.25*isGlass;
+    metal=mix(breedMetal,0.10,head*(1.0-isSamurai*armorZone));
+    rough=mix(0.36,0.22,uSheen)+head*0.15+(grain-0.5)*0.045*plate;
+    vec3 halfway=normalize(view+keyLight());
+    float coat=pow(max(dot(normal,halfway),0.0),50.0+grain*35.0)*max(dot(normal,keyLight()),0.0);
+    glints=coat*(0.10+scaleLip*0.22)*detail*uSheen;
+    vec2 bodySpeckCell=floor(vUV*vec2(120.0,70.0));
+    float bodySpeckH=hash(bodySpeckCell);
+    float bodySpeck=step(0.84,bodySpeckH)*pow(max(dot(normal,halfway),0.0),45.0)*plate;
+    base+=mix(vec3(0.25,0.80,1.0),vec3(1.0,0.85,0.30),hash(bodySpeckCell+7.3))*bodySpeck*1.8;
+    float edgeReflect=pow(1.0-clamp(normalView,0.0,1.0),4.0);
+    base+=mix(vec3(0.005,0.015,0.045),vec3(0.045,0.024,0.001),uAllGold)*edgeReflect*uIridescence*plate;
+    float bodySubsurface=pow(1.0-clamp(normalView,0.0,1.0),3.5)*(0.40+0.60*max(dot(-view,keyLight()),0.0));
+    base+=mix(vec3(0.015,0.09,0.28),vec3(0.28,0.12,0.01),uAllGold)*bodySubsurface*(1.0-head*0.5)*plate;
+    band=0.12*plate;
+   }
+ vec3 reflectance=mix(vec3(0.04),base,metal);
+ vec3 color=base*(0.22+0.20*max(normal.y,0.0))*(1.0-metal*0.5);
+ color+=lightBRDF(normal,view,keyLight(),base,metal,rough)*vec3(2.5,2.6,2.5);
+ color+=lightBRDF(normal,view,normalize(vec3(0.7,-0.1,0.6)),base,metal,rough)*vec3(0.50,0.67,0.76);
+ color+=studio(reflect(-view,normal))*fresnel(normalView,reflectance)*(0.65-rough*0.3);
+ color+=base*band*0.28+mix(vec3(0.48,0.70,1.0),vec3(1.0,0.84,0.48),uAllGold)*glints*1.5;
+ if(vMaterial>1.5&&vMaterial<2.5)color+=base*0.36;
+ color=color/(vec3(1.0)+color*0.65);
+ float glassFresnel=pow(1.0-clamp(normalView,0.0,1.0),2.2);
+ vec3 bioRimGlow=mix(vec3(0.08,0.98,0.90),vec3(0.75,0.30,1.0),0.5+0.5*cos(uPhase*2.5-vLocal.x*5.0));
+ color+=isGlass*(glassEmission*2.4+bioRimGlow*(glassFresnel*2.5+0.35));
+ float emissionStrength=length(glassEmission);
+ float glassAlpha=mix(0.22,0.65,clamp(glassFresnel*0.45+scaleRim*0.35+(plate>0.5?0.15:0.0),0.0,0.70));
+ glassAlpha=max(glassAlpha,clamp(emissionStrength*0.75,0.0,0.96));
+ if(vMaterial>1.5&&vMaterial<3.5)glassAlpha=0.88;
+ float bodyAlpha=mix(uOpacity,glassAlpha*uOpacity,isGlass);
+ gl_FragColor=vec4(pow(max(color,vec3(0.0)),vec3(0.4545)),bodyAlpha);
+}
+</script>
+<script>
+(() => {
+ 'use strict';
+ const canvas=document.getElementById('world'),root=document.documentElement;
+ const errorPanel=document.getElementById('error'),retry=document.getElementById('retry');
+ const effects=document.getElementById('effects'),effectContext=effects.getContext('2d');
+ const preference=typeof window.matchMedia==='function'?window.matchMedia('(prefers-reduced-motion: reduce)'):{matches:false};
+ const clamp=(value,low,high)=>Math.min(high,Math.max(low,value));
+ const mix=(start,end,amount)=>start+(end-start)*amount;
+ const random=(low,high)=>low+Math.random()*(high-low);
+ const tau=Math.PI*2;
+ const smooth=value=>{const bounded=clamp(value,0,1);return bounded*bounded*bounded*(10+bounded*(-15+bounded*6));};
+ const normalize=vector=>{const magnitude=Math.hypot(...vector);return magnitude<1e-9?[0,0,1]:vector.map(value=>value/magnitude);};
+ const cross=(first,second)=>[first[1]*second[2]-first[2]*second[1],first[2]*second[0]-first[0]*second[2],first[0]*second[1]-first[1]*second[0]];
+ const state={width:1,height:1,dpr:1,time:0,last:null,lastDraw:null,frame:null,ready:false,lost:false,paused:preference.matches,detail:false,bodyDetail:false,definition:.95,flex:.85,study:false,studyRest:false,drape:.85,studyFish:null,studyTime:0,size:1,speed:.5,flow:.70,tempo:1,angle:0,sheen:.80,allGold:false,light:-25,iridescence:1.25,opacity:1,background:false,objectOnly:false,fish:[],pointer:null,travelTime:0,breathing:true,encounters:true,ripples:[]};
+ window.__bettaState=state;
+ let gl=null,gpu=null;
+ function section(horizontal){
+  const stations=[[-1,.085,-.055,.037],[-.82,.17,-.10,.065],[-.60,.27,-.16,.098],[-.32,.375,-.24,.136],[0,.41,-.28,.162],[.27,.385,-.295,.174],[.48,.32,-.28,.165],[.66,.26,-.245,.15],[.81,.205,-.16,.128],[.92,.16,-.05,.084],[.985,.13,.025,.047],[1,.115,.055,.020]];
+  for(let index=1;index<stations.length;index++)if(horizontal<=stations[index][0]){
+   const before=stations[index-1],after=stations[index],amount=clamp((horizontal-before[0])/(after[0]-before[0]),0,1);
+   return after.slice(1).map((value,axis)=>{
+    const component=axis+1,span=after[0]-before[0],slope=(value-before[component])/span;
+    const previous=stations[Math.max(0,index-2)],next=stations[Math.min(stations.length-1,index+1)];
+    const earlier=index>1?(before[component]-previous[component])/(before[0]-previous[0]):slope;
+    const later=index<stations.length-1?(next[component]-value)/(next[0]-after[0]):slope;
+    const startSlope=slope*earlier>0?Math.sign(slope)*Math.min(Math.abs(slope),Math.abs(earlier)):0;
+    const endSlope=slope*later>0?Math.sign(slope)*Math.min(Math.abs(slope),Math.abs(later)):0;
+    const square=amount*amount,cube=square*amount;
+    return (2*cube-3*square+1)*before[component]+(cube-2*square+amount)*span*startSlope+(-2*cube+3*square)*value+(cube-square)*span*endSlope;
+   });
+  }
+  return stations[stations.length-1].slice(1);
+ }
+ function bodyPoint(horizontal,angle){
+  const [upper,lower,depth]=section(horizontal),center=(upper+lower)/2,radius=(upper-lower)/2;
+  return [horizontal,center+Math.cos(angle)*radius,Math.sin(angle)*depth];
+ }
+ function tailWeight(horizontal){const tail=clamp((.25-horizontal)/1.3,0,1);return tail*tail*(3-2*tail);}
+ function makeGeometry(){
+  const opaque={vertices:[],indices:[]},fins=[];
+  function vertex(mesh,position,normal,uv,material,freedom=0){mesh.vertices.push(...position,...normal,...uv,tailWeight(position[0]),freedom,material);return mesh.vertices.length/11-1;}
+  const rings=72,sides=36;
+  for(let ring=0;ring<=rings;ring++){
+   const horizontal=-1+2*ring/rings;
+   for(let side=0;side<=sides;side++){
+    const angle=side/sides*tau,position=bodyPoint(horizontal,angle),before=bodyPoint(clamp(horizontal-.001,-1,1),angle),after=bodyPoint(clamp(horizontal+.001,-1,1),angle);
+    const along=after.map((value,index)=>value-before[index]),aroundBefore=bodyPoint(horizontal,angle-.001),aroundAfter=bodyPoint(horizontal,angle+.001),around=aroundAfter.map((value,index)=>value-aroundBefore[index]);
+    vertex(opaque,position,normalize(cross(around,along)),[ring/rings,side/sides],0);
+   }
+  }
+  for(let ring=0;ring<rings;ring++)for(let side=0;side<sides;side++){const start=ring*(sides+1)+side,next=start+sides+1;opaque.indices.push(start,start+1,next,start+1,next+1,next);}
+  for(const [horizontal,ring] of [[-1,0],[1,rings]]){const center=vertex(opaque,[horizontal,(section(horizontal)[0]+section(horizontal)[1])/2,0],[Math.sign(horizontal),0,0],[(horizontal+1)/2,0],0);for(let side=0;side<sides;side++){const start=ring*(sides+1)+side;opaque.indices.push(center,start,start+1);}}
+  const scaleColumns=26,scaleRows=20;
+  for(let row=0;row<scaleRows;row++)for(let column=0;column<scaleColumns;column++){
+   const centerX=-.91+(column+.5+(row%2)*.5)*1.62/scaleColumns,centerAngle=(row+.5)/scaleRows*tau;
+   if(centerX>.49&&Math.cos(centerAngle)<.55)continue;
+   const noise=Math.sin(column*12.9898+row*78.233)*43758.5453,grain=noise-Math.floor(noise);
+   const halfWidth=.043*(.92+.16*grain),halfAngle=tau/scaleRows*.68;
+   const point=(horizontal,around)=>{
+    const position=bodyPoint(centerX+horizontal*halfWidth,centerAngle+around*halfAngle);
+    const radius=horizontal*horizontal+around*around,relief=.0013+.0035*Math.pow(Math.max(0,1-radius),2)*(1-.25*horizontal);
+    const upper=bodyPoint(centerX+horizontal*halfWidth,centerAngle+around*halfAngle+.001),lower=bodyPoint(centerX+horizontal*halfWidth,centerAngle+around*halfAngle-.001);
+    const front=bodyPoint(centerX+horizontal*halfWidth+.001,centerAngle+around*halfAngle),rear=bodyPoint(centerX+horizontal*halfWidth-.001,centerAngle+around*halfAngle);
+    const normal=normalize(cross(upper.map((value,index)=>value-lower[index]),front.map((value,index)=>value-rear[index])));
+    return position.map((value,index)=>value+normal[index]*relief);
+   };
+   const addScaleVertex=(horizontal,around)=>{
+    const before=point(horizontal-.001,around),after=point(horizontal+.001,around),lower=point(horizontal,around-.001),upper=point(horizontal,around+.001);
+    const normal=normalize(cross(upper.map((value,index)=>value-lower[index]),after.map((value,index)=>value-before[index])));
+    return vertex(opaque,point(horizontal,around),normal,[column*2+(horizontal+1)*.5,row*2+(around+1)*.5],6);
+   };
+   const center=addScaleVertex(0,0),segments=12;
+   for(const radius of [.55,1])for(let segment=0;segment<segments;segment++){
+    const angle=segment/segments*tau;addScaleVertex(Math.cos(angle)*radius,Math.sin(angle)*radius);
+   }
+   for(let segment=0;segment<segments;segment++){
+    const next=(segment+1)%segments,inner=center+1+segment,innerNext=center+1+next,outer=inner+segments,outerNext=innerNext+segments;
+    opaque.indices.push(center,inner,innerNext,inner,outer,innerNext,innerNext,outer,outerNext);
+   }
+  }
+  function sphere(center,radii,material){
+   const start=opaque.vertices.length/11,rows=10,columns=16;
+   for(let row=0;row<=rows;row++)for(let column=0;column<=columns;column++){
+    const latitude=Math.PI*row/rows,longitude=tau*column/columns;
+    const unit=[Math.sin(latitude)*Math.cos(longitude),Math.cos(latitude),Math.sin(latitude)*Math.sin(longitude)];
+    vertex(opaque,center.map((value,index)=>value+unit[index]*radii[index]),normalize(unit.map((value,index)=>value/radii[index])),[column/columns,row/rows],material);
+   }
+   for(let row=0;row<rows;row++)for(let column=0;column<columns;column++){const first=start+row*(columns+1)+column,second=first+columns+1;opaque.indices.push(first,second,first+1,first+1,second,second+1);}
+  }
+  for(const side of [-1,1]){sphere([.79,.095,side*.127],[.074,.071,.026],2);sphere([.795,.096,side*.150],[.057,.055,.011],3);}
+  sphere([.988,.112,0],[.019,.010,.030],0);sphere([.976,.080,0],[.021,.010,.036],0);
+  function fin(name,anchor,outline){
+   const mesh={name,anchor,center:anchor,vertices:[],indices:[],samples:[]};const broad=['caudal','dorsal','anal'].includes(name),rays=broad?96:name.startsWith('pectoral')?64:32,steps=broad?16:12;
+   const edge=fraction=>{
+    const segment=Math.min(outline.length-2,Math.floor(fraction*(outline.length-1))),amount=fraction*(outline.length-1)-segment;
+    const point=outline[segment].map((value,index)=>mix(value,outline[segment+1][index],amount));
+    const fringe=(name==='anal'?.06:name==='dorsal'?.035:0)*Math.pow(Math.sin(fraction*Math.PI*14),8);
+    const ruffle=name.startsWith('pectoral')?Math.pow(Math.sin(fraction*Math.PI),.7)*(.026*Math.sin(fraction*tau*15)+.012*Math.sin(fraction*tau*27)):0;
+    return point.map((value,index)=>anchor[index]+(value-anchor[index])*(1+fringe+ruffle));
+   };
+   for(let ray=0;ray<=rays;ray++){
+    const fraction=ray/rays,tip=edge(fraction),before=edge(Math.max(0,fraction-.001)),after=edge(Math.min(1,fraction+.001));
+    const radial=tip.map((value,index)=>value-anchor[index]),tangent=after.map((value,index)=>value-before[index]);
+    const normal=normalize(cross(radial,tangent));
+    for(let step=0;step<=steps;step++){const amount=step/steps;vertex(mesh,anchor.map((value,index)=>mix(value,tip[index],amount)),normal,[fraction,amount],name.startsWith('pectoral')?4:name.startsWith('operculum')?5:1,amount);}
+   }
+   for(let ray=0;ray<rays;ray++)for(let step=0;step<steps;step++){const first=ray*(steps+1)+step,second=first+steps+1;mesh.indices.push(first,second,first+1,first+1,second,second+1);}
+   const center=[0,0,0];let totalArea=0,sampleArea=0,sampleValues=Array(11).fill(0);
+   for(let triangle=0;triangle<mesh.indices.length;triangle+=3){
+    const vertices=mesh.indices.slice(triangle,triangle+3).map(index=>mesh.vertices.slice(index*11,index*11+11));
+    const along=vertices[1].slice(0,3).map((value,index)=>value-vertices[0][index]),across=vertices[2].slice(0,3).map((value,index)=>value-vertices[0][index]);
+    const area=Math.hypot(...cross(along,across));totalArea+=area;
+    for(const values of vertices){
+     const weight=area/3;
+     for(let axis=0;axis<3;axis++)center[axis]+=values[axis]*weight;
+     values.forEach((value,index)=>{sampleValues[index]+=value*weight;});sampleArea+=weight;
+    }
+     if(triangle%192===189||triangle+3>=mesh.indices.length){
+      if(sampleArea>0)mesh.samples.push({values:sampleValues.map(value=>value/sampleArea),weight:sampleArea});
+      sampleValues=Array(11).fill(0);sampleArea=0;
+     }
+    }
+    mesh.center=center.map(value=>value/Math.max(totalArea,1e-9));
+    fins.push(mesh);
+  }
+   const fan=Array.from({length:81},(_,index)=>{
+    const frac=index/80;
+    const angle=1.62-frac*3.24;
+    const scallop=1+.022*Math.cos(frac*tau*16)+.012*Math.sin(frac*tau*8)+.006*Math.cos(frac*tau*24);
+    return [-.985-Math.cos(angle)*1.36*scallop,Math.sin(angle)*1.18*scallop-.08,0];
+   });
+  fin('caudal',[-.985,0,0],fan);
+  fin('dorsal',[-.12,.397,0],[[.25,.387,0],[.12,.66,0],[-.08,.82,0],[-.38,.93,0],[-.72,.94,0],[-1.0,.82,0],[-1.14,.53,0],[-.83,.16,0]]);
+  fin('anal',[-.10,-.28,0],[[.40,-.24,0],[.33,-.57,0],[.10,-.95,0],[-.16,-1.22,0],[-.50,-1.27,0],[-.86,-1.14,0],[-1.12,-.84,0],[-.92,-.11,0]]);
+  for(const side of [-1,1]){
+   // Operculum mesh removed - respiration rendered seamlessly on body cheek shader without polygon Z-fighting
+   const microfan=[[.01,.07,.01],[-.06,.20,.04],[-.20,.35,.10],[-.40,.43,.15],[-.56,.37,.20],[-.63,.24,.22],[-.64,.06,.24],[-.59,-.09,.22],[-.54,-.16,.20],[-.42,-.14,.18],[-.34,-.23,.14],[-.24,-.30,.10],[-.15,-.23,.065],[-.12,-.09,.035],[-.025,-.04,.01]].map(point=>[.53+point[0],-.055+point[1],side*(.158+point[2])]);
+   fin(`pectoral-${side}`,[.53,-.055,side*.158],microfan);
+   fin(`pelvic-${side}`,[.44,-.215,side*.077],[[.47,-.22,side*.075],[.48,-.43,side*.12],[.20,-1.04,side*.15],[.11,-1.12,side*.15],[.16,-.70,side*.12],[.28,-.25,side*.077]]);
+  }
+  return {opaque,fins};
+ }
+ function release(){
+  if(!gpu||!gl)return;
+  for(const mesh of [gpu.opaque,...gpu.fins]){gl.deleteBuffer(mesh.vertexBuffer);gl.deleteBuffer(mesh.indexBuffer);}
+  gl.deleteProgram(gpu.program);gpu=null;
+ }
+ function initialize(){
+  retry.disabled=true;
+  try{
+   if(!gl)gl=canvas.getContext('webgl',{alpha:true,antialias:true,depth:true,stencil:false,premultipliedAlpha:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+   if(!gl)throw new Error('WebGL is unavailable in this host. Open this file in a WebGL-capable browser; the tetra demos remain available separately.');
+   if(gl.isContextLost())throw new Error('The graphics context is still unavailable. Wait for the browser to restore it, then try again.');
+   release();const derivatives=gl.getExtension('OES_standard_derivatives');
+   const prefix=derivatives?'#extension GL_OES_standard_derivatives : enable\n#define HAS_DERIVATIVES\n':'';
+   const shaders=[];let program=null;const buffers=[];
+   try{
+    for(const [id,type] of [['fish-vertex',gl.VERTEX_SHADER],['fish-fragment',gl.FRAGMENT_SHADER]]){
+     const shader=gl.createShader(type);shaders.push(shader);gl.shaderSource(shader,(type===gl.FRAGMENT_SHADER?prefix:'')+document.getElementById(id).textContent);gl.compileShader(shader);
+     if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw new Error(`Shader compilation failed: ${gl.getShaderInfoLog(shader)||'No driver detail available.'}`);
+    }
+    program=gl.createProgram();for(const shader of shaders)gl.attachShader(program,shader);gl.linkProgram(program);
+    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(`Shader linking failed: ${gl.getProgramInfoLog(program)||'No driver detail available.'}`);
+    const upload=mesh=>{
+     const vertexBuffer=gl.createBuffer(),indexBuffer=gl.createBuffer();buffers.push(vertexBuffer,indexBuffer);if(!vertexBuffer||!indexBuffer)throw new Error('The graphics driver could not allocate mesh buffers.');
+     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.vertices),gl.STATIC_DRAW);
+     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(mesh.indices),gl.STATIC_DRAW);
+     return {name:mesh.name,anchor:mesh.anchor,samples:mesh.samples,center:mesh.center,vertexBuffer,indexBuffer,count:mesh.indices.length,bytes:mesh.vertices.length*4+mesh.indices.length*2};
+    };
+    const geometry=makeGeometry(),attributes={},uniforms={};
+    for(const name of ['aPosition','aNormal','aUV','aMotion','aMaterial'])attributes[name]=gl.getAttribLocation(program,name);
+    for(const name of ['uRotation','uCenter','uViewport','uScale','uAnchor','uPhase','uFinPhase','uFinFlow','uTurnBend','uTailBend','uEffort','uStill','uFinAnchor','uStroke','uFinBend','uDrape','uFinTwist','uPin','uSweep','uBillow','uFlare','uKick','uGulp','uOpacity','uSheen','uDefinition','uFinKind','uIridescence','uAllGold','uBreed','uLightAngle'])uniforms[name]=gl.getUniformLocation(program,name);
+    gpu={program,attributes,uniforms,opaque:upload(geometry.opaque),fins:geometry.fins.map(upload)};
+   }catch(error){for(const buffer of buffers)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program);throw error;}
+   finally{for(const shader of shaders)gl.deleteShader(shader);}
+   state.ready=true;state.lost=false;errorPanel.hidden=true;measure();synchronize();
+  }catch(error){state.ready=false;errorPanel.hidden=false;document.getElementById('error-message').textContent=error.message||'The 3D fish could not start.';synchronize();}
+  finally{retry.disabled=state.lost;}
+ }
+ function rotation(yaw,pitch,bank){
+  const cosineYaw=Math.cos(yaw),sineYaw=Math.sin(yaw),cosinePitch=Math.cos(pitch),sinePitch=Math.sin(pitch),cosineBank=Math.cos(bank),sineBank=Math.sin(bank);
+  return new Float32Array([cosineYaw*cosinePitch,sinePitch,-sineYaw*cosinePitch,-cosineYaw*sinePitch*cosineBank+sineYaw*sineBank,cosinePitch*cosineBank,sineYaw*sinePitch*cosineBank+cosineYaw*sineBank,cosineYaw*sinePitch*sineBank+sineYaw*cosineBank,-cosinePitch*sineBank,-sineYaw*sinePitch*sineBank+cosineYaw*cosineBank]);
+ }
+ function scaleFor(fish){return Math.min(1,state.width/1400,state.height/800)*60*state.size*fish.depth;}
+ function bounds(fish){
+   const scale=scaleFor(fish);
+   const margin=Math.min(50,Math.max(20,scale*0.60));
+   const verticalTop=Math.min(30,Math.max(15,scale*0.35));
+   const verticalBottom=Math.min(35,Math.max(18,scale*0.40));
+   return {left:margin,right:state.width-margin,top:verticalTop,bottom:state.height-verticalBottom};
+  }
+ function constrain(fish){const limits=bounds(fish);fish.x=clamp(fish.x,limits.left,limits.right);fish.y=clamp(fish.y,limits.top,limits.bottom);}
+ const BREED_MAP={'mustard_gas':0,'mustard':0,'koi':1,'galaxy_koi':1,'samurai':2,'black_samurai':2,'super_red':3,'red':3,'royal_blue':4,'blue':4,'copper':5,'dragon_copper':5,'buttercup':6,'platinum_buttercup':6,'pastel':6,'yellow':6,'sunburst':7,'sunburst_butterfly':7,'butterfly':7,'fire_ice':7,'tri_band':7,'triband':7,'abyssal_glass':8,'glass':8,'glass_fish':8,'glassfish':8,'bioluminescent':8,'deep_sea':8,'deepsea':8,'mix':9,'random':9};
+ function getFishBreed(index,bName,totalFish=1){
+  const mapped=BREED_MAP[(bName||'buttercup').toLowerCase()]??6;
+  if(mapped===9)return index%9;
+  if(totalFish>1)return (mapped+index)%9;
+  return mapped;
+ }
+ window.__setBettaBreed=function(name){
+  if(typeof name!=='string')return;
+  state.breed=name;
+  const total=state.fish.length;
+  state.fish.forEach((f,idx)=>{f.breed=getFishBreed(idx,state.breed,total);});
+  draw();
+ };
+ const waterWakeChannel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('ohverlay_water_wake'):null;
+ let lastWakeBroadcast=0;
+ let activeHornwortStems=[];
+ if(waterWakeChannel){
+  waterWakeChannel.onmessage=event=>{
+   if(event.data&&event.data.type==='hornwort_stems'&&Array.isArray(event.data.stems)){
+    activeHornwortStems=event.data.stems;
+   }
+  };
+ }
+ function createFish(index,totalCount=1){return {breed:getFishBreed(index,state.breed||'buttercup',totalCount),avoidUntil:0,rival:null,x:state.width*(index===0?.66:random(.28,.80)),y:state.height*(index===0?.44:random(.25,.65)),z:index===0?0:random(-25,25),depth:index===0?1:random(.74,.90),facing:index%2?-1:1,yaw:index%2?Math.PI:0,pitch:0,bank:0,turnBend:0,tailBend:0,phase:random(0,tau),fins:makeFinRigs(),lastFinYaw:index%2?Math.PI:0,effort:.12,speed:0,vx:0,verticalSpeed:0,flare:0,kick:0,gulp:0,mode:'cruise',age:0,duration:random(7,12),queued:null,surfaceStage:null,returnPoint:null,splash:false,nextBreath:state.travelTime+random(35,65),nextDisplay:state.travelTime+random(20,35),nextBurst:state.travelTime+random(16,32),turn:null,nextTurn:0,nextTarget:0,target:{x:state.width*.15,y:state.height*.25},zones:[]};}
+ function special(fish){return fish.mode==='surface'||fish.mode==='display'||fish.mode==='challenge';}
+ function setMode(fish,mode,duration=0){fish.mode=mode;fish.age=0;fish.duration=duration;}
+ function beginAction(fish,action){
+  if(action==='surface'){
+   fish.returnPoint={x:fish.x/state.width,y:fish.y/state.height};fish.surfaceStage='rise';fish.splash=false;
+   const limits=bounds(fish);fish.surfaceX=clamp(fish.x+fish.facing*state.width*.10,limits.left,limits.right)/state.width;
+   setMode(fish,'surface');
+  }else if(action==='display'){
+   fish.displaySide=fish.z>=0?1:-1;fish.nextDisplay=state.travelTime+random(35,60);setMode(fish,'display',4.2);
+  }else{fish.nextBurst=state.travelTime+random(18,35);const limits=bounds(fish);fish.target={x:clamp(fish.x+fish.facing*state.width*.2,limits.left,limits.right),y:fish.y};setMode(fish,'burst',.68);}
+ }
+ function queueAction(action){
+  if(!state.ready||state.paused||state.detail||state.study||state.speed===0)return;
+  state.fish[0].queued=action;updateUI();
+ }
+ const finProfiles={
+  caudal:{mass:1.60,stiffness:14.5,damping:5.2,drag:1.40,frequency:.23,lever:1.65,kind:1},
+  dorsal:{mass:.68,stiffness:16.5,damping:4.8,drag:.95,frequency:.22,lever:.78,kind:2},
+  anal:{mass:1.15,stiffness:15.0,damping:5.0,drag:1.20,frequency:.19,lever:.92,kind:3},
+  'pelvic--1':{mass:.24,stiffness:11.0,damping:2.8,drag:.65,frequency:.43,lever:.30},
+  'pelvic-1':{mass:.28,stiffness:12.0,damping:3.0,drag:.70,frequency:.39,lever:.30}
+ };
+ function spring(){return {position:0,velocity:0};}
+ function makeFinRigs(){
+  const rigs={};
+  for(const [name,profile] of Object.entries(finProfiles))rigs[name]={profile,phase:random(0,tau),fold:spring(),billow:spring(),twist:spring(),rest:{position:state.drape,velocity:0},memory:random(-.5,.5),crease:random(0,1),nodes:[spring(),spring(),spring()]};
+  for(const side of [-1,1]){
+   rigs[`pectoral-${side}`]={side,phase:random(0,1),pin:0,stroke:[0,0,1],power:false,frequency:side>0?1.30:1.42};
+   rigs[`operculum-${side}`]={side,phase:random(0,tau),frequency:0.75};
+  }
+  return rigs;
+ }
+ function springStep(node,target,profile,elapsed,limit,massScale=1,stiffnessScale=1){
+  const acceleration=((target-node.position)*profile.stiffness*stiffnessScale-profile.damping*node.velocity)/(profile.mass*massScale);
+  node.velocity+=acceleration*elapsed;node.position+=node.velocity*elapsed;
+  if(Math.abs(node.position)>limit){node.position=clamp(node.position,-limit,limit);if(node.velocity*node.position>0)node.velocity=0;}
+ }
+ function finResponse(fish,elapsed,previousSpeed){
+  const fit=Math.max(.04,Math.min(1,state.width/1400,state.height/800));
+  const targetPin=state.speed>0&&fish.mode==='burst'&&fish.age>.10&&fish.age<.50?1:0;
+  const yawRate=elapsed>0?clamp(Math.atan2(Math.sin(fish.yaw-fish.lastFinYaw),Math.cos(fish.yaw-fish.lastFinYaw))/elapsed,-2,2):0;
+  fish.lastFinYaw=fish.yaw;
+  const braking=elapsed>0?clamp((previousSpeed-fish.speed)/(elapsed*120*fit),0,1):0;
+  const display=fish.mode==='display'?smooth(fish.age/.5)*(1-smooth((fish.age-3.4)/.8)):0;
+  fish.flare=mix(fish.flare,display,1-Math.exp(-elapsed*12));
+  const turnShape=fish.turn?Math.sin(Math.PI*smooth(fish.turn.progress)):0;
+  const bendTarget=(fish.turn?-fish.turn.direction*.30*turnShape:fish.mode==='display'?fish.displaySide*.18*display:0)*state.flex;
+  const tailTarget=(fish.turn?-fish.turn.direction*.40*turnShape:fish.mode==='display'?fish.displaySide*.25*display:0)*state.flex;
+  fish.turnBend=mix(fish.turnBend,bendTarget,1-Math.exp(-elapsed*9));
+  fish.tailBend=mix(fish.tailBend,tailTarget,1-Math.exp(-elapsed*4.5));
+  const breathFreq=mix(0.70,1.40,fish.effort);
+  for(const side of [-1,1]){
+   const orig=fish.fins[`operculum-${side}`];
+   if(orig)orig.phase=(orig.phase+elapsed*tau*breathFreq)%tau;
+  }
+  for(const side of [-1,1]){
+   const rig=fish.fins[`pectoral-${side}`],authority=clamp(1+side*yawRate*.18+Math.abs(fish.pitch)*.10,.65,1.25);
+   rig.pin=mix(rig.pin,targetPin,1-Math.exp(-elapsed*(side>0?34:30)));
+   const baseTempo=mix(1.25,3.2,fish.effort)+(side>0?.05:-.05);
+    const frequency=baseTempo+Math.abs(yawRate)*.40+braking*.5+(fish.mode==='hover'?-0.15:0);
+   rig.phase=(rig.phase+elapsed*frequency)%1;
+   rig.power=rig.phase<.42;
+   const progress=rig.power?rig.phase/.42:(rig.phase-.42)/.58;
+   const sweep=rig.power?mix(-.65,.55,smooth(progress)):mix(.55,-.65,smooth(progress));
+   const feather=rig.power?.10:.10+.92*Math.sin(Math.PI*progress)**2;
+   const opening=mix(1-.43*feather,.32,rig.pin);
+   rig.stroke=[side*(sweep*.65+.36)*authority*(1-rig.pin),side*feather*(1-rig.pin),opening];
+  }
+  const steps=Math.max(1,Math.ceil(elapsed/(1/120))),step=elapsed/steps;
+  for(const [name,profile] of Object.entries(finProfiles)){
+   const rig=fish.fins[name];
+   rig.memory=mix(rig.memory,clamp(-yawRate*.65,-1,1),1-Math.exp(-elapsed*(Math.abs(yawRate)>.05?3:.09)));
+   const restTarget=state.drape*(1-smooth(fish.speed/(18*fit)))*(1-fish.flare);
+   rig.phase=(rig.phase+elapsed*tau*profile.frequency)%tau;
+   const foldTarget=clamp((fish.speed/(42*fit)+targetPin*.2)*profile.drag,0,.90)*(1-fish.flare*.82);
+   const billowTarget=braking*profile.drag*(1-fish.flare);
+   const current=state.flow*(Math.sin(rig.phase)*.055+Math.sin(rig.phase*2+.7)*.018);
+   const load=clamp((current-yawRate*profile.lever*.065-fish.kick*profile.lever*.42)*(1-fish.flare*.9),-.18,.18);
+   for(let iteration=0;iteration<steps;iteration++){
+    springStep(rig.rest,restTarget,profile,step,1,1.4,.60);
+    springStep(rig.fold,foldTarget,profile,step,1);
+    springStep(rig.billow,billowTarget,profile,step,1,1.15,.75);
+    springStep(rig.twist,clamp(-yawRate*.065+current*.5,-.13,.13)*(1-fish.flare*.9),profile,step,.16,1.2,.65);
+    springStep(rig.nodes[0],load*.12,profile,step,.06,.7,1.2);
+    springStep(rig.nodes[1],rig.nodes[0].position*1.8+load*.28,profile,step,.14,1.1,.85);
+    springStep(rig.nodes[2],rig.nodes[1].position*1.4+load*.32,profile,step,.24,1.55,.65);
+   }
+  }
+ }
+ function finUniforms(fish,mesh){
+  const rig=mesh?fish.fins[mesh.name]:null;
+  if(!rig)return {phase:0,drape:[0,0,0,0],pin:0,stroke:[0,0,1],bend:[0,0,0],twist:0,sweep:0,billow:0};
+  if(mesh&&mesh.name.startsWith('operculum'))return {phase:rig.phase,drape:[0,0,0,0],pin:0,stroke:[0,0,1],bend:[0,0,0],twist:0,sweep:0,billow:0};
+  if(rig.stroke)return {phase:rig.phase*tau,drape:[0,0,0,0],pin:rig.pin,stroke:rig.stroke,bend:[0,0,0],twist:0,sweep:0,billow:0};
+  return {phase:rig.phase,drape:[clamp(rig.rest.position,0,1),rig.memory,rig.crease,rig.profile.kind||0],pin:0,stroke:[0,0,1],bend:rig.nodes.map(node=>node.position),twist:rig.twist.position,sweep:rig.fold.position,billow:rig.billow.position};
+ }
+ function projectPoint(fish,point){
+  const item=model(fish),matrix=item.matrix;
+  const world=item.center.map((center,axis)=>center+item.scale*(matrix[axis]*(point[0]-.68)+matrix[axis+3]*point[1]+matrix[axis+6]*point[2]));
+  const perspective=1-world[2]/1100;
+  return {x:state.width*.5+world[0]/perspective,y:state.height*.5-world[1]/perspective};
+ }
+ function surfaceMotion(fish,elapsed){
+  const limits=bounds(fish),scale=scaleFor(fish),stage=fish.surfaceStage;
+  const targetX=clamp((stage==='descend'?fish.returnPoint.x:fish.surfaceX)*state.width,limits.left,limits.right);
+  const targetY=stage==='descend'?clamp(fish.returnPoint.y*state.height,limits.top,limits.bottom):clamp(limits.top+scale*.40,limits.top,limits.bottom);
+  const deltaX=targetX-fish.x,deltaY=targetY-fish.y,distance=Math.hypot(deltaX,deltaY);
+  const fit=Math.min(1,state.height/800),pace=(stage==='descend'?31:50)*state.speed*fit;
+  const approach=stage==='gulp'?0:Math.min(pace,distance*1.5);
+  fish.vx=mix(fish.vx,deltaX/Math.max(1,distance)*approach,1-Math.exp(-elapsed*4));
+  fish.verticalSpeed=mix(fish.verticalSpeed,deltaY/Math.max(1,distance)*approach,1-Math.exp(-elapsed*4));
+  fish.x+=fish.vx*elapsed;fish.y+=fish.verticalSpeed*elapsed;fish.speed=Math.hypot(fish.vx,fish.verticalSpeed);
+  const pitch=stage==='descend'?-.16:Math.PI/4;
+  fish.pitch=mix(fish.pitch,pitch,1-Math.exp(-elapsed*2.8));
+  fish.effort=mix(fish.effort,stage==='gulp'?.03:.25,1-Math.exp(-elapsed*4));
+  if(stage==='rise'&&distance<Math.max(1.5,scale*.04)){fish.surfaceStage='gulp';fish.age=0;}
+  if(stage==='gulp'){
+   fish.gulp=Math.sin(Math.PI*clamp(fish.age/.9,0,1));
+   if(!fish.splash&&fish.age>.28){
+    const mouth=projectPoint(fish,[1,.065,0]);state.ripples.push({x:mouth.x/state.width,y:mouth.y/state.height,born:state.time});fish.splash=true;
+   }
+   if(fish.age>.95){fish.surfaceStage='descend';fish.age=0;fish.gulp=0;}
+  }
+  if(stage==='descend'&&distance<Math.max(2,scale*.05)){
+   setMode(fish,'hover',random(2,4));fish.surfaceStage=null;fish.gulp=0;fish.nextBreath=state.travelTime+random(35,65);chooseTarget(fish);
+  }
+  constrain(fish);
+ }
+ function setCount(count){
+  while(state.fish.length<count)state.fish.push(createFish(state.fish.length,count));
+  state.fish.length=count;
+  state.fish.forEach((f,idx)=>{f.breed=getFishBreed(idx,state.breed,count);constrain(f);});
+  updateUI();draw();
+ }
+ function chooseTarget(fish,point=null){
+   const limits=bounds(fish);
+   if(point){
+    fish.target={x:clamp(point.x+random(-45,45),limits.left,limits.right),y:clamp(point.y+random(-35,35),limits.top,limits.bottom)};
+    fish.targetKind='user';
+   }else{
+    const now=state.time;
+    if(!fish.nextGraze)fish.nextGraze=now+random(12,25);
+    if(now>=fish.nextGraze){
+     fish.nextGraze=now+random(25,50);
+     const grazeChoice=Math.random();
+     if(grazeChoice<0.30){
+      fish.target={x:limits.left+random(2,18),y:mix(limits.top,limits.bottom,random(.10,.90))};
+      fish.targetKind='graze_wall';
+     }else if(grazeChoice<0.60){
+      fish.target={x:limits.right-random(2,18),y:mix(limits.top,limits.bottom,random(.10,.90))};
+      fish.targetKind='graze_wall';
+     }else{
+      if(activeHornwortStems.length>0){
+       const stem=activeHornwortStems[Math.floor(Math.random()*activeHornwortStems.length)];
+       fish.target={x:clamp(stem.topX+random(-15,15),limits.left,limits.right),y:clamp(stem.topY+random(8,24),limits.top,limits.bottom)};
+      }else{
+       fish.target={x:mix(limits.left+25,limits.right-25,random(.05,.95)),y:limits.bottom-random(4,28)};
+      }
+      fish.targetKind='graze_hornwort';
+     }
+    }else{
+     if(!fish.zones.length){
+      fish.zones=Array.from({length:16},(_,index)=>index);
+      for(let index=15;index>0;index--){const other=Math.floor(Math.random()*(index+1));[fish.zones[index],fish.zones[other]]=[fish.zones[other],fish.zones[index]];}
+     }
+     let zone=fish.zones.pop();
+     let col=zone%4,row=Math.floor(zone/4);
+     let targetX=mix(limits.left,limits.right,(col+random(.05,.95))/4);
+     let targetY=mix(limits.top,limits.bottom,(row+random(.05,.95))/4);
+     if(Math.hypot(targetX-fish.x,targetY-fish.y)<260&&fish.zones.length>0){
+      zone=fish.zones.pop();
+      col=zone%4;row=Math.floor(zone/4);
+      targetX=mix(limits.left,limits.right,(col+random(.05,.95))/4);
+      targetY=mix(limits.top,limits.bottom,(row+random(.05,.95))/4);
+     }
+     fish.target={x:clamp(targetX,limits.left,limits.right),y:clamp(targetY,limits.top,limits.bottom)};
+     fish.targetKind='cruise';
+    }
+   }
+   const horizontalPace=Math.max(.1,38*state.speed*Math.min(1,state.width/1400,state.height/800)),verticalPace=Math.max(.1,22*state.speed*Math.min(1,state.height/800));
+   fish.nextTarget=state.time+16+Math.max(Math.abs(fish.target.x-fish.x)/horizontalPace,Math.abs(fish.target.y-fish.y)/verticalPace);
+  }
+ const turnSamples=[{x:0,z:0}];
+ for(let index=1;index<=256;index++){
+  const angle=Math.PI*smooth((index-.5)/256),previous=turnSamples[index-1];
+  turnSamples.push({x:previous.x+Math.cos(angle)/256,z:previous.z+Math.sin(angle)/256});
+ }
+ function turnPoint(progress){
+  const position=clamp(progress,0,1)*256,index=Math.min(255,Math.floor(position)),amount=position-index;
+  return {x:mix(turnSamples[index].x,turnSamples[index+1].x,amount),z:mix(turnSamples[index].z,turnSamples[index+1].z,amount)};
+ }
+ function startTurn(fish){
+  if(fish.turn)return;
+  const scale=scaleFor(fish),limits=bounds(fish),room=fish.facing>0?limits.right-fish.x:fish.x-limits.left;
+  const direction=fish.facing*(fish.z>=0?1:-1);
+  const turnLength=Math.max(1.8*scale,Math.min(3.4*scale,Math.max(room,45)*0.80));
+  fish.turn={progress:0,length:turnLength,from:fish.yaw,direction};
+  fish.nextTurn=state.time+6.0;updateUI();
+ }
+ function setStudy(enabled,rest=false){
+  state.study=enabled;state.studyRest=enabled&&rest;state.bodyDetail=false;
+  if(enabled){
+   state.detail=false;state.studyTime=0;state.studyFish=createFish(0);state.studyFish.mode='hover';
+   if(state.angle===0){state.angle=-55;const input=document.getElementById('angle');input.value='-55';document.getElementById('angle-value').textContent='-55°';}
+  }else state.studyFish=null;
+  synchronize();
+ }
+ function advanceStudy(elapsed){
+  const fish=state.studyFish;if(!fish)return;
+  state.studyTime+=elapsed;
+  const cycle=state.studyTime%10,fit=Math.min(1,state.width/1400,state.height/800),previousSpeed=fish.speed;
+  const load=state.studyRest?'hover':cycle<2?'hover':cycle<5?'cruise':cycle<5.68?'burst':cycle<7.5?'settle':'hover';
+  fish.mode=load;fish.age=load==='burst'?cycle-5:cycle;fish.kick=0;
+  const drive=state.speed===0?0:(load==='cruise'?24:load==='burst'?90:0)*state.speed*fit;
+  fish.speed=mix(fish.speed,drive,1-Math.exp(-elapsed*(load==='settle'?9:7)));
+  fish.effort=mix(fish.effort,load==='burst'?.8:load==='cruise'?.18:.03,1-Math.exp(-elapsed*7));
+  if(load==='burst'&&state.speed>0){const progress=fish.age/.68;fish.kick=.16*Math.sin(tau*progress)*Math.sin(Math.PI*progress);}
+  fish.phase=(fish.phase+elapsed*tau*(.35+fish.effort*.85))%tau;
+  finResponse(fish,elapsed,previousSpeed);updateUI();
+ }
+ function advance(elapsed){
+  state.time+=elapsed;if(state.speed>0)state.travelTime+=elapsed;
+  state.ripples=state.ripples.filter(ripple=>state.time-ripple.born<1.1);
+  for(const fish of state.fish){
+   fish.phase=(fish.phase+elapsed*tau*(.35+fish.effort*.85))%tau;
+   const previousSpeed=fish.speed;
+   if(state.speed===0){fish.speed=0;fish.vx=0;fish.verticalSpeed=0;finResponse(fish,elapsed,previousSpeed);continue;}
+   fish.age+=elapsed;fish.kick=0;fish.gulp=0;
+   if(!fish.turn&&!special(fish)&&fish.mode!=='burst'){
+    if(fish.queued){const action=fish.queued;fish.queued=null;beginAction(fish,action);}
+    else if(state.breathing&&state.travelTime>=fish.nextBreath)beginAction(fish,'surface');
+    else if(state.encounters&&state.travelTime>=fish.nextDisplay&&state.fish.some(other=>other!==fish&&Math.hypot(other.x-fish.x,other.y-fish.y,other.z-fish.z)<scaleFor(fish)*4.5))beginAction(fish,'display');
+   }
+   if(fish.mode==='surface'){surfaceMotion(fish,elapsed);finResponse(fish,elapsed,previousSpeed);continue;}
+   if(fish.mode==='display'){
+    fish.speed*=Math.exp(-elapsed*9);fish.verticalSpeed*=Math.exp(-elapsed*9);
+    const display=smooth(fish.age/.5)*(1-smooth((fish.age-3.4)/.8));
+    fish.x+=Math.cos(fish.yaw)*(fish.speed+Math.sin(fish.age*13)*.8*display)*elapsed;
+    fish.y+=fish.verticalSpeed*elapsed;fish.pitch=mix(fish.pitch,0,1-Math.exp(-elapsed*5));fish.effort=.04;
+    if(fish.age>=fish.duration)setMode(fish,'hover',random(2,4));
+    constrain(fish);finResponse(fish,elapsed,previousSpeed);continue;
+   }
+   if(fish.mode==='graze_wall'){
+     fish.speed=mix(fish.speed,0,1-Math.exp(-elapsed*6));
+     fish.verticalSpeed=mix(fish.verticalSpeed,Math.sin(fish.age*1.8)*1.5,1-Math.exp(-elapsed*4));
+     fish.effort=0.04;
+     const peckCycle=Math.sin(fish.age*7.5);
+     fish.gulp=peckCycle>0.2?Math.pow(peckCycle,2.0)*0.55:0;
+     if(fish.age>=fish.duration){setMode(fish,'hover',random(1.5,2.5));startTurn(fish);chooseTarget(fish);}
+     constrain(fish);finResponse(fish,elapsed,previousSpeed);continue;
+    }
+    if(fish.mode==='graze_hornwort'){
+     fish.speed=mix(fish.speed,4,1-Math.exp(-elapsed*5));
+     fish.verticalSpeed=mix(fish.verticalSpeed,Math.sin(fish.age*1.5)*1.2,1-Math.exp(-elapsed*4));
+     fish.pitch=mix(fish.pitch,-0.34+Math.sin(fish.age*2.5)*0.08,1-Math.exp(-elapsed*3.5));
+     fish.effort=0.06;
+     const peckCycle=Math.sin(fish.age*6.0);
+     fish.gulp=peckCycle>0.3?Math.pow(peckCycle,2.0)*0.45:0;
+     if(fish.age>=fish.duration){setMode(fish,'hover',random(2,3));fish.pitch=0;chooseTarget(fish);}
+     constrain(fish);finResponse(fish,elapsed,previousSpeed);continue;
+    }
+    if(fish.targetKind==='graze_wall'&&fish.mode==='cruise'&&!fish.turn&&Math.hypot(fish.target.x-fish.x,fish.target.y-fish.y)<36){
+     setMode(fish,'graze_wall',random(3.2,5.5));fish.targetKind='cruise';
+    }
+    if(fish.targetKind==='graze_hornwort'&&fish.mode==='cruise'&&!fish.turn&&Math.hypot(fish.target.x-fish.x,fish.target.y-fish.y)<42){
+     setMode(fish,'graze_hornwort',random(4.0,6.5));fish.targetKind='cruise';
+    }
+    if(fish.mode==='cruise'&&fish.age>=fish.duration&&!fish.turn)setMode(fish,'hover',random(1.5,3.0));
+    if(fish.mode==='hover'&&fish.age>=fish.duration){setMode(fish,'cruise',random(14,24));chooseTarget(fish);}
+   if(fish.mode==='cruise'&&!fish.turn&&state.travelTime>=fish.nextBurst)beginAction(fish,'burst');
+   if(fish.mode==='burst'){
+    const progress=clamp(fish.age/(fish.duration||.68),0,1);
+    fish.kick=.16*Math.sin(tau*progress)*Math.sin(Math.PI*progress);
+    if(fish.age>=fish.duration){fish.kick=0;setMode(fish,'settle',.8);}
+   }
+   if(fish.mode==='settle'&&fish.age>=fish.duration&&!fish.turn){
+    if(fish.targetKind==='dart'){setMode(fish,'cruise',random(6,10));fish.targetKind='cruise';}
+    else if(fish.speed<.4)setMode(fish,'hover',random(2,4));
+   }
+   if(!fish.turn&&fish.mode==='cruise'&&(state.time>=fish.nextTarget||Math.hypot(fish.target.x-fish.x,fish.target.y-fish.y)<28))chooseTarget(fish);
+   const limits=bounds(fish),scale=scaleFor(fish),horizontal=fish.target.x-fish.x,vertical=fish.target.y-fish.y;
+   const edgeDistance=fish.facing>0?limits.right-fish.x:fish.x-limits.left;
+   const turnMargin=Math.min(55,scale*0.85);
+   const isNearEdge=edgeDistance<turnMargin;
+   const isBehindTarget=state.time>=fish.nextTurn&&Math.abs(horizontal)>Math.max(130,scale*1.8)&&Math.sign(horizontal)!==fish.facing;
+   if(!fish.turn&&fish.mode!=='hover'&&fish.mode!=='settle'&&(isNearEdge||isBehindTarget))startTurn(fish);
+   const fit=Math.min(1,state.width/1400,state.height/800),drag=fish.mode==='hover'||fish.mode==='settle'?7:4.5;
+   const drive=(fish.turn?64:fish.targetKind==='dart'?96:fish.mode==='cruise'?52:0)*state.speed*fit;
+   fish.speed=fish.speed*Math.exp(-drag*elapsed)+drive*(1-Math.exp(-drag*elapsed));
+   if(fish.mode==='burst'){
+    const stroke=Math.sin(Math.PI*clamp((fish.age-.17)/.28,0,1));
+    const burstPower=fish.targetKind==='dart'?580:440;
+    fish.speed+=burstPower*state.speed*fit*stroke*elapsed;
+   }
+   if(fish.speed<.015)fish.speed=0;
+   fish.effort=mix(fish.effort,fish.mode==='burst'?.9:fish.turn?.55:fish.mode==='cruise'?.18:.03,1-Math.exp(-elapsed*8));
+   let distance=fish.speed*elapsed,turning=0;
+   if(fish.turn){
+    const turn=fish.turn,previous=turnPoint(turn.progress),travel=Math.min(distance,(1-turn.progress)*turn.length);
+    turn.progress=clamp(turn.progress+travel/turn.length,0,1);
+    const point=turnPoint(turn.progress),along=(point.x-previous.x)*turn.length,across=-(point.z-previous.z)*turn.length*turn.direction;
+    fish.x+=Math.cos(turn.from)*along+Math.sin(turn.from)*across;fish.z+=-Math.sin(turn.from)*along+Math.cos(turn.from)*across;
+    fish.yaw=turn.from+turn.direction*Math.PI*smooth(turn.progress);turning=Math.sin(Math.PI*smooth(turn.progress));
+    fish.bank=-turn.direction*.055*turning;distance-=travel;
+    if(turn.progress>=1){fish.facing*=-1;fish.turn=null;fish.bank=0;fish.nextTurn=state.time+5.5;}
+   }
+   if(!fish.turn){fish.x+=Math.cos(fish.yaw)*distance;fish.z-=Math.sin(fish.yaw)*distance;}
+   const verticalDrive=fish.mode==='hover'||fish.mode==='settle'?0:clamp(vertical*.18,-38,38)*state.speed*Math.min(1,state.height/700)*(1-turning*.50);
+   fish.verticalSpeed=mix(fish.verticalSpeed,verticalDrive,1-Math.exp(-elapsed*(verticalDrive===0?9:3)));
+   if(Math.abs(fish.verticalSpeed)<.015)fish.verticalSpeed=0;
+   fish.y+=fish.verticalSpeed*elapsed;fish.vx=Math.cos(fish.yaw)*fish.speed;
+   fish.pitch=mix(fish.pitch,-Math.atan2(fish.verticalSpeed,Math.max(20,fish.speed))*.45,1-Math.exp(-elapsed*4));
+   constrain(fish);finResponse(fish,elapsed,previousSpeed);
+  }
+  // Bothways Physics: Broadcast Betta wake to Hornwort
+  if(waterWakeChannel&&(state.time-lastWakeBroadcast>=0.05)){
+   lastWakeBroadcast=state.time;
+   try{
+    waterWakeChannel.postMessage({
+     type:'betta_wake',
+     wakes:state.fish.map(f=>{
+      const mouth=projectPoint(f,[1,.065,0]);
+      return {
+       x:f.x,
+       y:f.y,
+       mouthX:mouth.x,
+       mouthY:mouth.y,
+       vx:f.vx||(Math.cos(f.yaw)*f.speed),
+       vy:f.verticalSpeed||0,
+       speed:f.speed,
+       facing:f.facing,
+       scale:scaleFor(f),
+       isBetta:true,
+       nibbling:(f.mode==='graze_hornwort'||f.targetKind==='graze_hornwort')&&(f.gulp>0.05||Math.hypot(f.x-f.target.x,f.y-f.target.y)<45)
+      };
+     })
+    });
+   }catch(e){}
+  }
+  if(state.lastUIUpdate===undefined||state.time-state.lastUIUpdate>0.25){
+   state.lastUIUpdate=state.time;
+   updateUI();
+  }
+ }
+ function measure(){
+  const previousWidth=state.width,previousHeight=state.height,previousFit=Math.min(1,previousWidth/1400,previousHeight/800),rect=canvas.getBoundingClientRect();state.width=Math.max(1,rect.width);state.height=Math.max(1,rect.height);
+  state.dpr=Math.min(1.5,window.devicePixelRatio||1,Math.sqrt(2200000/(state.width*state.height)));
+  canvas.width=Math.max(1,Math.round(state.width*state.dpr));canvas.height=Math.max(1,Math.round(state.height*state.dpr));
+  effects.width=canvas.width;effects.height=canvas.height;
+  for(const fish of state.fish){if(fish.turn)fish.turn.length*=Math.min(1,state.width/1400,state.height/800)/previousFit;fish.x=fish.x/previousWidth*state.width;fish.y=fish.y/previousHeight*state.height;fish.target.x=fish.target.x/previousWidth*state.width;fish.target.y=fish.target.y/previousHeight*state.height;constrain(fish);}
+  state.pointer=null;document.getElementById('area').textContent=`${Math.round(state.width)} × ${Math.round(state.height)} CSS px · 30 fps cap`;draw();
+ }
+ function bind(mesh){
+  gl.bindBuffer(gl.ARRAY_BUFFER,mesh.vertexBuffer);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.indexBuffer);
+  for(const [name,size,offset] of [['aPosition',3,0],['aNormal',3,3],['aUV',2,6],['aMotion',2,8],['aMaterial',1,10]]){const location=gpu.attributes[name];if(location<0)continue;gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,44,offset*4);}
+ }
+ function model(fish){
+  const detail=state.detail||state.study,scale=state.bodyDetail?Math.min(state.width*.80/2.3,state.height*.42/1.05,330):detail?Math.min(state.width*.72/3.5,state.height*.48/2.55,190):scaleFor(fish);
+  const matrix=rotation(detail?state.angle*Math.PI/180:fish.yaw,detail?0:fish.pitch,detail?0:fish.bank);
+  const offset=state.bodyDetail?0:.65;
+  return {fish,scale,matrix,center:[detail?matrix[0]*scale*offset:fish.x-state.width/2,detail?state.height*.13:state.height/2-fish.y,detail?matrix[2]*scale*offset:fish.z]};
+ }
+ function uniforms(model,mesh=null){
+  const pose=finUniforms(model.fish,mesh),finKind=mesh?mesh.name==='caudal'?1:mesh.name==='dorsal'?2:mesh.name==='anal'?3:mesh.name.startsWith('pelvic')?4:mesh.name.startsWith('pectoral')?5:6:0;
+  gl.uniform1f(gpu.uniforms.uFinKind,finKind);gl.uniform1f(gpu.uniforms.uBreed,model.fish.breed||0);
+  gl.uniformMatrix3fv(gpu.uniforms.uRotation,false,model.matrix);gl.uniform3fv(gpu.uniforms.uCenter,model.center);gl.uniform1f(gpu.uniforms.uScale,model.scale);gl.uniform1f(gpu.uniforms.uAnchor,state.detail||state.study?0:.68);
+  gl.uniform1f(gpu.uniforms.uPhase,model.fish.phase);gl.uniform1f(gpu.uniforms.uFinPhase,pose.phase);gl.uniform1f(gpu.uniforms.uFinFlow,state.flow);gl.uniform1f(gpu.uniforms.uTurnBend,model.fish.turnBend);gl.uniform1f(gpu.uniforms.uTailBend,model.fish.tailBend);gl.uniform1f(gpu.uniforms.uEffort,model.fish.effort);gl.uniform1f(gpu.uniforms.uStill,state.detail?1:0);
+  gl.uniform3fv(gpu.uniforms.uFinAnchor,mesh?mesh.anchor:[0,0,0]);gl.uniform3fv(gpu.uniforms.uStroke,pose.stroke);gl.uniform3fv(gpu.uniforms.uFinBend,pose.bend);gl.uniform4fv(gpu.uniforms.uDrape,pose.drape);gl.uniform1f(gpu.uniforms.uFinTwist,pose.twist);
+  gl.uniform1f(gpu.uniforms.uPin,pose.pin);gl.uniform1f(gpu.uniforms.uSweep,pose.sweep);gl.uniform1f(gpu.uniforms.uBillow,pose.billow);
+  for(const [uniform,property] of [['uFlare','flare'],['uKick','kick'],['uGulp','gulp']])gl.uniform1f(gpu.uniforms[uniform],state.detail?0:model.fish[property]);
+ }
+ function spineFrame(distance,bend,tailBend){
+  const cubic=value=>{const bounded=clamp(value,0,1);return bounded*bounded*(3-2*bounded);};
+  const angle=position=>bend*cubic(position/1.05)+tailBend*cubic((position-.50)/1.20);
+  let along=0,across=0;
+  for(const [fraction,weight] of [[.0694318442,.1739274226],[.3300094782,.3260725774],[.6699905218,.3260725774],[.9305681558,.1739274226]]){
+   const heading=angle(distance*fraction);along+=Math.cos(heading)*weight;across+=Math.sin(heading)*weight;
+  }
+  return [along*distance,across*distance,angle(distance)];
+ }
+ function bendPoint(point,bend,tailBend=0){
+  const [horizontal,vertical,depth]=point;if(horizontal>=.48)return [...point];
+  const [along,across,angle]=spineFrame(.48-horizontal,bend,tailBend);
+  return [.48-along+depth*Math.sin(angle),vertical,across+depth*Math.cos(angle)];
+ }
+ function pectoralEnvelope(vector,freedom,span,side){
+  const amount=clamp(span/.30,0,1),clearance=.035*amount*amount*(3-2*amount),outward=side*vector[2]-clearance,cushion=.010*freedom;
+  return [vector[0],vector[1],side*(clearance+.5*(outward+Math.sqrt(outward*outward+cushion*cushion)))];
+ }
+ function featherPoint(vector,angle){const cosine=Math.cos(angle),sine=Math.sin(angle);return [vector[0],cosine*vector[1]-sine*vector[2],sine*vector[1]+cosine*vector[2]];}
+ function hingePoint(vector,angle){const cosine=Math.cos(angle),sine=Math.sin(angle);return [cosine*vector[0]+sine*vector[2],vector[1],-sine*vector[0]+cosine*vector[2]];}
+ function drapePoint(point,anchor,uv,freedom,pose){
+  const [amount,memory,crease,kind]=pose.drape;if(kind<.5)return point;
+  const delta=point.map((value,index)=>value-anchor[index]);
+  const uneven=.84+.16*Math.sin(uv[0]*Math.PI*3+crease);
+  const coordinate=uv[0]*8+crease+.12*uv[1]+.09*Math.sin(uv[0]*tau+crease);
+  const pleat=1-4*Math.abs((coordinate-Math.floor(coordinate))-.5),spread=amount*freedom;
+  if(kind<1.5){
+   const upper=clamp((delta[1]+.15)/.85,0,1),crest=upper*upper*(3-2*upper);
+   delta[1]*=1-amount*(.43+.14*crest)*uneven;
+   delta[0]*=1-.10*spread;delta[1]-=.19*spread*uneven;
+   delta[2]+=spread*(.19*pleat+memory*.12)*uneven;
+  }else if(kind<2.5){
+   delta[0]-=.54*spread*uneven;delta[1]*=1-.70*amount*uneven;delta[1]-=.17*spread;
+   delta[2]+=spread*(.12*pleat+.10+memory*.10);
+  }else{
+   delta[0]-=.18*spread*uneven;delta[1]*=1+.10*spread;delta[1]-=.15*spread*uneven;
+   delta[2]+=spread*(.14*pleat-.06+memory*.08);
+  }
+  return delta.map((value,index)=>value+anchor[index]);
+ }
+ function deformPoint(values,mesh,fish,still=false){
+  let point=values.slice(0,3);if(still)return point;
+  const pose=finUniforms(fish,mesh),material=values[10],freedom=values[9]*values[9],anchor=mesh?mesh.anchor:[0,0,0];
+  if(material===1){
+   const rayWeight=.78+.22*Math.sin(values[6]*Math.PI),spread=1+freedom*rayWeight*(-.36*pose.sweep+.10*pose.billow+.12*fish.flare);
+   point=[point[0]+freedom*rayWeight*(-.26*pose.sweep+.05*pose.billow),anchor[1]+(point[1]-anchor[1])*spread,anchor[2]+(point[2]-anchor[2])*spread];
+   const span=values[9]*values[9]*(3-2*values[9]),inverse=1-span;
+   const bend=3*inverse*inverse*span*pose.bend[0]+3*inverse*span*span*pose.bend[1]+span*span*span*pose.bend[2];
+   point[2]+=bend*rayWeight+pose.twist*(values[6]-.5)*freedom;
+   const phase=pose.phase-values[9]*2.8+values[6]*5.5,flow=state.flow*(1-.9*fish.flare);
+   point[2]+=flow*freedom*(Math.sin(phase)*.040+Math.sin(phase*2)*.012);point[1]+=flow*freedom*Math.sin(pose.phase+values[6]*8)*.018;
+   point=drapePoint(point,anchor,values.slice(6,8),freedom,pose);
+  }else if(material===4||material===5){
+   let delta=point.map((value,index)=>value-anchor[index]);const side=Math.sign(anchor[2]);
+   if(material===4){delta[1]*=pose.stroke[2];delta[2]*=1-.96*pose.pin;delta[0]-=.10*pose.pin*freedom;delta[2]+=side*.018*freedom*Math.sin(pose.phase-values[9]*2.4+values[6]*18)*(1-pose.pin);delta=hingePoint(featherPoint(delta,pose.stroke[1]),pose.stroke[0]);delta=pectoralEnvelope(delta,freedom,values[9],side);}
+   else {
+    delta=hingePoint(delta,side*1.15*fish.flare);
+   }
+   point=delta.map((value,index)=>value+anchor[index]);
+  }
+  point=bendPoint(point,fish.turnBend,fish.tailBend);
+  point[2]+=values[8]*((.005+.016*fish.effort)*Math.sin(values[0]*4.1+fish.phase)+fish.kick*Math.sin((.35-values[0])*4.5));
+  if(material===0&&values[1]<.065){const amount=clamp((values[0]-.86)/.14,0,1);point[1]-=.018*fish.gulp*amount*amount*(3-2*amount);}
+  point[0]-=state.study?0:.68;return point;
+ }
+ function finCenter(mesh,fish,still){
+  const center=[0,0,0];let weight=0;
+  for(const sample of mesh.samples){const point=deformPoint(sample.values,mesh,fish,still);weight+=sample.weight;point.forEach((value,index)=>{center[index]+=value*sample.weight;});}
+  return center.map(value=>value/Math.max(weight,1e-9));
+ }
+ let effectsClean=true;
+ function drawEffects(){
+  if(!effectContext)return;
+  if(!state.ripples||state.ripples.length===0){
+   if(!effectsClean){
+    effectContext.setTransform(state.dpr,0,0,state.dpr,0,0);
+    effectContext.clearRect(0,0,state.width,state.height);
+    effectsClean=true;
+   }
+   return;
+  }
+  effectsClean=false;
+  effectContext.setTransform(state.dpr,0,0,state.dpr,0,0);effectContext.clearRect(0,0,state.width,state.height);
+  if(!state.ready||state.detail||state.study||state.opacity===0)return;
+  for(const ripple of state.ripples){
+   const age=clamp((state.time-ripple.born)/1.1,0,1),horizontal=ripple.x*state.width,vertical=ripple.y*state.height;
+   effectContext.strokeStyle=`rgba(192,237,226,${(1-age)*.6*state.opacity})`;effectContext.lineWidth=.8;
+   effectContext.beginPath();effectContext.ellipse(horizontal,vertical,3+age*18,1+age*4,0,0,tau);effectContext.stroke();
+   for(const side of [-1,1]){effectContext.beginPath();effectContext.arc(horizontal+side*(3+age*5),vertical-Math.sin(age*Math.PI)*7,1.2*(1-age),0,tau);effectContext.stroke();}
+  }
+ }
+ function draw(){
+  drawEffects();
+  if(!state.ready||state.lost||!gpu)return;
+  gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.depthMask(true);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  if(state.opacity===0)return;
+  gl.useProgram(gpu.program);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  gl.uniform2f(gpu.uniforms.uViewport,state.width,state.height);gl.uniform1f(gpu.uniforms.uOpacity,state.opacity);gl.uniform1f(gpu.uniforms.uSheen,state.sheen);gl.uniform1f(gpu.uniforms.uDefinition,state.definition);gl.uniform1f(gpu.uniforms.uIridescence,state.iridescence);gl.uniform1f(gpu.uniforms.uAllGold,state.allGold?1:0);gl.uniform1f(gpu.uniforms.uLightAngle,state.light*Math.PI/180);
+  const models=(state.study?[state.studyFish]:state.detail?state.fish.slice(0,1):state.fish).filter(Boolean).map(model).sort((first,second)=>first.center[2]-second.center[2]);
+  bind(gpu.opaque);
+  if(state.opacity<1){gl.colorMask(false,false,false,false);for(const item of models){uniforms(item);gl.drawElements(gl.TRIANGLES,gpu.opaque.count,gl.UNSIGNED_SHORT,0);}gl.colorMask(true,true,true,true);}
+  for(const item of models){uniforms(item);gl.drawElements(gl.TRIANGLES,gpu.opaque.count,gl.UNSIGNED_SHORT,0);}
+  const fins=[];for(const item of models)for(const mesh of gpu.fins){if(mesh.name.startsWith('operculum')&&item.fish.flare<0.01)continue;if(state.bodyDetail&&!mesh.name.startsWith('pectoral')&&!mesh.name.startsWith('operculum'))continue;const center=finCenter(mesh,item.fish,state.detail),depth=item.center[2]+item.scale*(item.matrix[2]*center[0]+item.matrix[5]*center[1]+item.matrix[8]*center[2]);fins.push({item,mesh,depth});}
+  fins.sort((first,second)=>first.depth-second.depth);gl.depthMask(false);
+  for(const entry of fins){uniforms(entry.item,entry.mesh);bind(entry.mesh);gl.drawElements(gl.TRIANGLES,entry.mesh.count,gl.UNSIGNED_SHORT,0);}
+  gl.depthMask(true);
+ }
+ function updateUI(){
+  const pause=document.getElementById('pause');pause.textContent=state.paused?'Resume motion':'Pause motion';pause.setAttribute('aria-pressed',String(state.paused));pause.disabled=!state.ready||state.detail;
+  const bodyDetail=document.getElementById('bodydetail');bodyDetail.disabled=!state.ready;bodyDetail.textContent=state.bodyDetail?'Exit body detail':'Body detail';bodyDetail.setAttribute('aria-pressed',String(state.bodyDetail));
+  const detail=document.getElementById('detail');detail.textContent=state.detail?'Return to aquarium':'Detail view';detail.setAttribute('aria-pressed',String(state.detail));detail.disabled=!state.ready;
+  const rest=document.getElementById('rest');rest.disabled=!state.ready;rest.textContent=state.studyRest?'Exit rest study':'Rest study';rest.setAttribute('aria-pressed',String(state.studyRest));
+  const study=document.getElementById('study');study.disabled=!state.ready;study.textContent=state.study?'Exit fin study':'Fin study';study.setAttribute('aria-pressed',String(state.study));
+  document.getElementById('angle').disabled=!state.ready||!(state.detail||state.study);document.getElementById('invite').disabled=!state.ready||state.detail||state.study;
+  document.getElementById('turn').disabled=!state.ready||state.paused||state.detail||state.study||state.speed===0||state.fish.some(fish=>fish.turn||special(fish));
+  for(const id of ['burst','surface','display'])document.getElementById(id).disabled=!state.ready||state.paused||state.detail||state.study||state.speed===0;
+  document.getElementById('status').textContent=!state.ready?'3D rendering unavailable · see message':state.detail?(state.bodyDetail?'Body detail · reflective scales · drag View angle':'3D detail · drag View angle'):state.paused?'Motion paused':state.study?`${state.studyRest?'Rest study':'Fin study'} · ${state.studyFish?.mode||'hover'} · left ${state.studyFish?.fins['pectoral--1'].power?'power':'recovery'} / right ${state.studyFish?.fins['pectoral-1'].power?'power':'recovery'}`:state.speed===0?'Holding position · fins moving':`${state.fish[0]?.mode==='surface'?`Surface visit: ${state.fish[0].surfaceStage}`:state.fish[0]?.mode||'Preparing'}${state.fish[0]?.queued?` · queued: ${state.fish[0].queued}`:''} · independent fins`;
+ }
+ function frame(timestamp){
+  state.frame=null;if(!state.ready||state.lost||state.paused||state.detail||document.hidden)return;
+  const elapsed=state.last===null?0:clamp((timestamp-state.last)/1000,0,.05)*state.tempo;
+  state.last=timestamp;state.lastDraw=timestamp;
+  if(state.study)advanceStudy(elapsed);else advance(elapsed);
+  draw();
+  state.frame=requestAnimationFrame(frame);
+ }
+ function synchronize(){
+  if(state.frame!==null)cancelAnimationFrame(state.frame);state.frame=null;state.last=null;state.lastDraw=null;updateUI();draw();
+  if(state.ready&&!state.lost&&!state.paused&&!state.detail&&!document.hidden)state.frame=requestAnimationFrame(frame);
+ }
+  function dartAway(fish,pokePoint){
+   const limits=bounds(fish),scale=scaleFor(fish);
+   let dx=fish.x-pokePoint.x,dy=fish.y-pokePoint.y;
+   if(Math.abs(dx)<1&&Math.abs(dy)<1){dx=(Math.random()-.5)*10;dy=(Math.random()-.5)*10;}
+   const dist=Math.hypot(dx,dy)||1,dirX=dx/dist,dirY=dy/dist;
+   const fleeDist=random(380,720);
+   let escapeX=fish.x+(Math.abs(dirX)>0.2?Math.sign(dirX):(Math.random()>.5?1:-1))*fleeDist+random(-60,60);
+   if(escapeX<limits.left+50)escapeX=limits.right-random(60,240);
+   else if(escapeX>limits.right-50)escapeX=limits.left+random(60,240);
+   let escapeY=fish.y+(Math.abs(dirY)>0.15?Math.sign(dirY):(Math.random()>.5?1:-1))*random(140,320)+random(-40,40);
+   escapeY=clamp(escapeY,limits.top+10,limits.bottom-10);
+   fish.target={x:clamp(escapeX,limits.left,limits.right),y:escapeY};
+   fish.targetKind='dart';
+   const escapeFacing=Math.sign(fish.target.x-fish.x)||(dirX>=0?1:-1);
+   fish.facing=escapeFacing;fish.yaw=escapeFacing>0?0:Math.PI;fish.turn=null;
+   fish.nextTurn=state.time+4.0;
+   const burstDur=random(.85,1.25);
+   setMode(fish,'burst',burstDur);
+   fish.duration=burstDur;
+   fish.effort=1.0;
+   fish.pitch=clamp(dirY*.35,-.35,.35);
+   const fit=Math.min(1,state.width/1400,state.height/800);
+   fish.speed=Math.max(fish.speed,260*state.speed*fit);
+   fish.nextBurst=state.travelTime+random(18,32);
+   fish.nextTarget=state.time+10;
+   state.ripples.push({x:clamp(fish.x/state.width,0,1),y:clamp(fish.y/state.height,0,1),born:state.time});
+  }
+  function checkPoke(point){
+   if(!state.ready||state.detail||state.study||state.speed===0)return false;
+   const now=performance.now();
+   for(const fish of state.fish){
+    if(special(fish)&&fish.mode!=='burst')continue;
+    const scale=scaleFor(fish);
+    const bodyCenterX=fish.x-fish.facing*(scale*.3);
+    const dx=point.x-bodyCenterX,dy=point.y-fish.y;
+    const hitDist=Math.hypot(dx/1.3,dy),hitRadius=Math.max(50,scale*1.4);
+    if(hitDist<hitRadius&&(!fish.lastPoked||(now-fish.lastPoked>800))){
+     fish.lastPoked=now;
+     dartAway(fish,point);
+     return true;
+    }
+   }
+   return false;
+  }
+ function invite(point){if(!state.ready||state.detail||state.study)return;state.pointer=point;for(const fish of state.fish)if(!special(fish)){chooseTarget(fish,point);setMode(fish,'cruise',random(7,12));}}
+ for(const [id,action] of [['burst','burst'],['surface','surface'],['display','display']])document.getElementById(id).addEventListener('click',()=>queueAction(action));
+ for(const [id,key,label] of [['breathing','breathing','Surface visits'],['encounters','encounters','Encounters']])document.getElementById(id).addEventListener('click',()=>{
+  state[key]=!state[key];const button=document.getElementById(id);button.textContent=`${label}: ${state[key]?'on':'off'}`;button.setAttribute('aria-pressed',String(state[key]));
+  if(key==='breathing'&&state.breathing)for(const fish of state.fish)fish.nextBreath=state.travelTime+random(120,240);
+ });
+ document.getElementById('pause').addEventListener('click',()=>{state.paused=!state.paused;synchronize();});
+ document.getElementById('rest').addEventListener('click',()=>setStudy(!state.studyRest,true));
+ document.getElementById('study').addEventListener('click',()=>setStudy(!state.study||state.studyRest));
+ function setBodyDetail(enabled){state.study=false;state.studyRest=false;state.studyFish=null;state.bodyDetail=enabled;state.detail=enabled;synchronize();}
+ document.getElementById('bodydetail').addEventListener('click',()=>setBodyDetail(!state.bodyDetail));
+ document.getElementById('detail').addEventListener('click',()=>{const enabled=!state.detail||state.bodyDetail;state.study=false;state.studyRest=false;state.studyFish=null;state.bodyDetail=false;state.detail=enabled;synchronize();});
+ document.getElementById('turn').addEventListener('click',()=>{if(!state.ready||state.paused||state.detail||state.study||state.speed===0||state.fish.some(fish=>fish.turn||special(fish)))return;for(const fish of state.fish){setMode(fish,'cruise',random(7,12));const limits=bounds(fish);fish.target={x:fish.facing>0?limits.left:limits.right,y:fish.y};fish.nextTarget=state.time+25;startTurn(fish);}updateUI();});
+ document.getElementById('invite').addEventListener('click',()=>{if(state.study)return;for(const fish of state.fish)if(!special(fish)){chooseTarget(fish);setMode(fish,'cruise',random(7,12));}state.pointer=null;});
+ function setGold(enabled){state.allGold=enabled;const button=document.getElementById('gold');button.textContent=`All gold: ${enabled?'on':'off'}`;button.setAttribute('aria-pressed',String(enabled));draw();}
+ document.getElementById('gold').addEventListener('click',()=>setGold(!state.allGold));
+ const settings={light:{apply:value=>{state.light=value;},format:value=>`${value}°`},flex:{apply:value=>{state.flex=value/100;},format:value=>`${value}%`},definition:{apply:value=>{state.definition=value/100;},format:value=>`${value}%`},drape:{apply:value=>{state.drape=value/100;if(state.paused){const fit=Math.max(.04,Math.min(1,state.width/1400,state.height/800));for(const fish of [...state.fish,state.studyFish].filter(Boolean))for(const rig of Object.values(fish.fins))if(rig.rest){rig.rest.position=state.drape*(1-smooth(fish.speed/(18*fit)))*(1-fish.flare);rig.rest.velocity=0;}}},format:value=>`${value}%`},flow:{apply:value=>{state.flow=value/100;},format:value=>`${value}%`},sheen:{apply:value=>{state.sheen=value/100;},format:value=>`${value}%`},iridescence:{apply:value=>{state.iridescence=value/100;},format:value=>`${value}%`},count:{apply:value=>setCount(value),format:value=>String(value)},size:{apply:value=>{const previous=state.size;state.size=value/100;for(const fish of state.fish){if(fish.turn)fish.turn.length*=state.size/previous;constrain(fish);}},format:value=>`${value}%`},speed:{apply:value=>{state.speed=value;},format:value=>`${value.toFixed(1)}×`},tempo:{apply:value=>{state.tempo=value;},format:value=>`${value.toFixed(2).replace(/0$/,'')}×`},angle:{apply:value=>{state.angle=value;},format:value=>`${value}°`},transparency:{apply:value=>{state.opacity=1-value/100;},format:value=>`${value}%`}};
+ function setSetting(id,raw){const input=document.getElementById(id),parsed=Number(raw);if(!Number.isFinite(parsed))return;const value=clamp(id==='count'?Math.round(parsed):parsed,Number(input.min),Number(input.max));input.value=String(value);settings[id].apply(value);document.getElementById(`${id}-value`).textContent=settings[id].format(value);updateUI();draw();}
+ for(const id of Object.keys(settings))document.getElementById(id).addEventListener('input',event=>setSetting(id,event.target.value));
+ canvas.addEventListener('click',event=>{const rect=canvas.getBoundingClientRect();const point={x:event.clientX-rect.left,y:event.clientY-rect.top};if(checkPoke(point))return;invite(point);});
+ canvas.addEventListener('keydown',event=>{const offsets={ArrowLeft:[-70,0],ArrowRight:[70,0],ArrowUp:[0,-55],ArrowDown:[0,55]};if(offsets[event.key]){event.preventDefault();const point=state.pointer||{x:state.width*.5,y:state.height*.45};invite({x:clamp(point.x+offsets[event.key][0],0,state.width),y:clamp(point.y+offsets[event.key][1],0,state.height)});}else if(event.key==='Home'){event.preventDefault();invite({x:state.width*.5,y:state.height*.45});}});
+ function setBackground(enabled){state.background=enabled;root.classList.toggle('transparent',enabled);const button=document.getElementById('background');button.textContent=enabled?'Restore background':'Transparent background';button.setAttribute('aria-pressed',String(enabled));}
+ function setObjectOnly(enabled,focus=true){state.objectOnly=enabled;root.classList.toggle('object-only',enabled);if(effects)effects.style.display=enabled?'none':'block';if(focus){if(enabled&&!root.classList.contains('no-controls'))document.getElementById('restore').focus();else if(!enabled)document.getElementById('hide').focus();}}
+ document.getElementById('background').addEventListener('click',()=>setBackground(!state.background));document.getElementById('hide').addEventListener('click',()=>setObjectOnly(true));document.getElementById('restore').addEventListener('click',()=>setObjectOnly(false));
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&state.objectOnly)setObjectOnly(false);});
+ document.getElementById('theme').addEventListener('click',()=>{const day=document.body.classList.toggle('day'),button=document.getElementById('theme');button.textContent=day?'Night backdrop':'Day backdrop';button.setAttribute('aria-pressed',String(day));});
+ const fullscreen=document.getElementById('fullscreen');fullscreen.disabled=typeof root.requestFullscreen!=='function';fullscreen.addEventListener('click',async()=>{fullscreen.disabled=true;try{if(document.fullscreenElement)await document.exitFullscreen();else await root.requestFullscreen();}catch{document.getElementById('status').textContent='Fullscreen unavailable · maximize the window instead';}finally{fullscreen.disabled=typeof root.requestFullscreen!=='function';}});
+ document.addEventListener('fullscreenchange',()=>{fullscreen.textContent=document.fullscreenElement?'Exit fullscreen':'Fullscreen';fullscreen.setAttribute('aria-pressed',String(Boolean(document.fullscreenElement)));measure();});
+ document.addEventListener('visibilitychange',synchronize);
+ const onPreference=event=>{state.paused=event.matches;synchronize();};if(typeof preference.addEventListener==='function')preference.addEventListener('change',onPreference);else if(typeof preference.addListener==='function')preference.addListener(onPreference);
+ canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();state.lost=true;state.ready=false;errorPanel.hidden=false;document.getElementById('error-message').textContent='Graphics context lost. Waiting for the browser to restore it…';retry.disabled=true;synchronize();});
+ canvas.addEventListener('webglcontextrestored',()=>{gpu=null;state.lost=false;initialize();});retry.addEventListener('click',initialize);
+ window.addEventListener('resize',measure);if(typeof window.ResizeObserver==='function'){const observer=new window.ResizeObserver(measure);observer.observe(canvas);}
+ const parameters=new URLSearchParams(window.location.search);state.breed=parameters.get('breed')||parameters.get('color')||'buttercup';if(parameters.get('controls')==='0')root.classList.add('no-controls');if(parameters.get('transparent')==='1')setObjectOnly(true,false);if(parameters.get('background')==='transparent')setBackground(true);if(parameters.get('motion')==='off')state.paused=true;if(parameters.get('detail')==='1')state.detail=true;
+  measure();setCount(1);if(parameters.get('gold')==='1')setGold(true);for(const [parameter,key,label] of [['breathing','breathing','Surface visits'],['encounters','encounters','Encounters']])if(parameters.get(parameter)==='off'){state[key]=false;const button=document.getElementById(parameter);button.textContent=`${label}: off`;button.setAttribute('aria-pressed','false');}
+  for(const id of Object.keys(settings))if(parameters.has(id))setSetting(id,parameters.get(id));
+  if(parameters.has('scale')){let s=Number(parameters.get('scale'));if(Number.isFinite(s)&&s>0)setSetting('size',s>10?s:s*100);}
+  if(parameters.has('opacity')){let o=Number(parameters.get('opacity'));if(Number.isFinite(o))setSetting('transparency',(1-Math.max(0,Math.min(1,o)))*100);}
+  if(parameters.has('count')){let c=Number(parameters.get('count'));if(Number.isFinite(c)&&c>=1)setSetting('count',c);}
+  if(parameters.get('study')==='1')setStudy(true);if(parameters.get('rest')==='1')setStudy(true,true);if(parameters.get('bodydetail')==='1')setBodyDetail(true);initialize();
+  window.__fishState = state;
+  window.setScale = function(scaleVal) {
+    let s = Number(scaleVal);
+    if (!Number.isFinite(s) || s <= 0) return;
+    setSetting('size', s > 10 ? s : s * 100);
+  };
+  window.setOpacity = function(op) {
+    const o = Number(op);
+    if (Number.isFinite(o)) setSetting('transparency', (1 - Math.max(0, Math.min(1, o))) * 100);
+  };
+  window.setTransparency = function(pct) {
+    setSetting('transparency', pct);
+  };
+  window.setCount = function(c) {
+    setSetting('count', c);
+  };
+
+  let lastCursorInvite = 0;
+  window.__onCursorMove = function(x, y) {
+    const point = {x: x, y: y};
+    if (checkPoke(point)) return;
+    const now = performance.now();
+    if (now - lastCursorInvite > 500) {
+      lastCursorInvite = now;
+      invite(point);
+    }
+  };
+  window.pokeFish = function(x, y) {
+    return checkPoke({x: x, y: y});
+  };
+
+})();
+</script>
+</body>
+</html>

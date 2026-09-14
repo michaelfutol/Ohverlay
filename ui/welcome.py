@@ -116,7 +116,7 @@ class WelcomeGuide(QWidget):
         # Body text
         body_label = QLabel(
             "Ohverlay is running quietly in your system tray.<br/>"
-            "Look for the glowing <b>O</b> icon near the clock—or inside the <b>^</b> hidden-icons menu to open your Nature Controls.",
+            "Look for the glowing <b>O</b> icon near the clock—or inside the <b>^</b> hidden-icons menu to open your Vintage Controls.",
             card
         )
         body_label.setTextFormat(Qt.RichText)
@@ -127,7 +127,7 @@ class WelcomeGuide(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(8)
 
-        btn_controls = QPushButton("Open Nature Controls", card)
+        btn_controls = QPushButton("Open Vintage Controls", card)
         btn_controls.clicked.connect(self._on_open_controls)
 
         btn_show = QPushButton("Show Me Where", card)

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bioluminescent Mermaid Overlay</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
+    user-select: none;
+  }
+  #glcanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  #video {
+    display: none;
+  }
+</style>
+</head>
+<body>
+<video id="video" src="mermaid.webm" loop muted playsinline crossorigin="anonymous"></video>
+<canvas id="glcanvas"></canvas>
+
+<script>
+(function() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('glcanvas');
+  
+  // Set slow motion playback for majestic, fluid movement
+  video.playbackRate = 0.60;
+
+  const gl = canvas.getContext('webgl', {
+    alpha: true,
+    premultipliedAlpha: true,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance'
+  });
+
+  if (!gl) {
+    console.error('WebGL unavailable for Mermaid overlay');
+    return;
+  }
+
+  // --- WebGL Shaders for 100% GPU Keying (Zero CPU load) ---
+  const vsSource = `
+    attribute vec2 a_position;
+    attribute vec2 a_texCoord;
+    uniform vec2 u_resolution;
+    uniform vec2 u_translation;
+    uniform vec2 u_scale;
+    varying vec2 v_texCoord;
+
+    void main() {
+      vec2 scaledPos = a_position * u_scale;
+      vec2 worldPos = scaledPos + u_translation;
+      vec2 zeroToOne = worldPos / u_resolution;
+      vec2 zeroToTwo = zeroToOne * 2.0;
+      vec2 clipSpace = zeroToTwo - 1.0;
+      gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+      v_texCoord = a_texCoord;
+    }
+  `;
+
+  const fsSource = `
+    precision mediump float;
+    uniform sampler2D u_image;
+    uniform float u_opacity;
+    uniform int u_keyMode; // 0 = black key, 1 = green key
+    varying vec2 v_texCoord;
+
+    void main() {
+      // Crop watermark star in bottom-right corner (x > 86%, y > 74%)
+      if (v_texCoord.x > 0.86 && v_texCoord.y > 0.74) {
+        gl_FragColor = vec4(0.0);
+        return;
+      }
+
+      vec4 col = texture2D(u_image, v_texCoord);
+      float alpha = 1.0;
+
+      if (u_keyMode == 1) {
+        // --- GREEN SCREEN CHROMA KEY ---
+        float maxRB = max(col.r, col.b);
+        float diff = col.g - maxRB;
+        alpha = 1.0 - smoothstep(0.03, 0.15, diff);
+        if (col.g > maxRB) {
+          col.g = maxRB * 0.95; // De-spill green
+        }
+      } else {
+        // --- BLACK BACKGROUND LUMA KEY ---
+        // Clean threshold for subtle bioluminescence glow
+        float maxC = max(col.r, max(col.g, col.b));
+        alpha = smoothstep(0.025, 0.12, maxC);
+      }
+
+      gl_FragColor = vec4(col.rgb, alpha * u_opacity);
+    }
+  `;
+
+  function createShader(gl, type, source) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+  gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+  gl.linkProgram(program);
+
+  const a_position = gl.getAttribLocation(program, 'a_position');
+  const a_texCoord = gl.getAttribLocation(program, 'a_texCoord');
+  const u_resolution = gl.getUniformLocation(program, 'u_resolution');
+  const u_translation = gl.getUniformLocation(program, 'u_translation');
+  const u_scale = gl.getUniformLocation(program, 'u_scale');
+  const u_opacity = gl.getUniformLocation(program, 'u_opacity');
+  const u_keyMode = gl.getUniformLocation(program, 'u_keyMode');
+
+  // Quad geometry (unit rectangle 0..1)
+  const posBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    0, 0,
+    1, 0,
+    0, 1,
+    0, 1,
+    1, 0,
+    1, 1
+  ]), gl.STATIC_DRAW);
+
+  const texBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    0, 0,
+    1, 0,
+    0, 1,
+    0, 1,
+    1, 0,
+    1, 1
+  ]), gl.STATIC_DRAW);
+
+  // Video texture
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  // State
+  const state = {
+    width: window.innerWidth || 1920,
+    height: window.innerHeight || 1080,
+    userScale: 1.0,
+    userOpacity: 1.0,
+    keyMode: 0, // 0 = black, 1 = green
+    active: false,
+    swimY: 0.65, // vertical depth ratio
+    nextAppearanceTimer: null
+  };
+
+  function measure() {
+    state.width = Math.max(1, window.innerWidth);
+    state.height = Math.max(1, window.innerHeight);
+    canvas.width = state.width;
+    canvas.height = state.height;
+    gl.viewport(0, 0, state.width, state.height);
+  }
+  window.addEventListener('resize', measure);
+  measure();
+
+  // Read URL params
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('key') === 'green') state.keyMode = 1;
+  if (params.has('scale')) {
+    const s = Number(params.get('scale'));
+    if (Number.isFinite(s) && s > 0) state.userScale = s > 10 ? s / 100 : s;
+  }
+  if (params.has('opacity')) {
+    const op = Number(params.get('opacity'));
+    if (Number.isFinite(op)) state.userOpacity = Math.max(0, Math.min(1, op));
+  }
+
+  // --- Sighting Lifecycle ---
+  // Starts a majestic swim traversing the full screen bounds
+  function startSighting() {
+    measure();
+    state.active = true;
+    // Choose a calm depth in lower half (e.g. 55% to 75% down)
+    state.swimY = 0.55 + Math.random() * 0.18;
+    video.currentTime = 0;
+    const playPromise = video.play();
+    if (playPromise) playPromise.catch(() => {});
+    requestAnimationFrame(render);
+  }
+
+  function finishSighting() {
+    state.active = false;
+    video.pause();
+    // Clear canvas to 0 alpha (0% GPU/CPU while dormant)
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    // Schedule next sighting in ~2.5 to 3.5 hours (ambient rare sighting)
+    const delayMs = (2.5 + Math.random() * 1.0) * 3600 * 1000;
+    if (state.nextAppearanceTimer) clearTimeout(state.nextAppearanceTimer);
+    state.nextAppearanceTimer = setTimeout(startSighting, delayMs);
+  }
+
+  // Render frame (Only active while mermaid is swimming across)
+  function render() {
+    if (!state.active) return;
+
+    // Check if video finished its natural playback duration
+    if (video.ended || (video.duration && video.currentTime >= video.duration - 0.05)) {
+      finishSighting();
+      return;
+    }
+
+    // Upload video frame to GPU texture (Direct hardware upload)
+    if (video.readyState >= 2) {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    }
+
+    // Proportions: Native 1280x720 (16:9)
+    const vw = video.videoWidth || 1280;
+    const vh = video.videoHeight || 720;
+    const renderWidth = Math.min(state.width * 0.65, 960) * state.userScale;
+    const renderHeight = renderWidth * (vh / vw);
+
+    // Synchronize horizontal traversal with video progress so it gracefully exits right edge
+    const progress = video.duration ? (video.currentTime / video.duration) : 0;
+    const startX = -renderWidth * 0.15; // Starts entering from left edge
+    const endX = state.width * 0.40;     // Swims across gracefully towards right
+    const currentX = startX + progress * (endX - startX);
+
+    // Subtle natural undulating hydro-wave
+    const waveY = Math.sin(progress * Math.PI * 4.0) * 20;
+    const currentY = (state.height * state.swimY) - (renderHeight * 0.5) + waveY;
+
+    // Clear and render WebGL
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(program);
+    gl.uniform2f(u_resolution, state.width, state.height);
+    gl.uniform2f(u_translation, currentX, currentY);
+    gl.uniform2f(u_scale, renderWidth, renderHeight);
+    gl.uniform1f(u_opacity, state.userOpacity);
+    gl.uniform1i(u_keyMode, state.keyMode);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.enableVertexAttribArray(a_position);
+    gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
+    gl.enableVertexAttribArray(a_texCoord);
+    gl.vertexAttribPointer(a_texCoord, 2, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    requestAnimationFrame(render);
+  }
+
+  // --- Initial Launch ---
+  // Initial sighting after 1.5 seconds upon enabling overlay
+  setTimeout(startSighting, 1500);
+
+  // Control APIs for user / testing
+  window.summonMermaid = function() {
+    startSighting();
+  };
+  window.setScale = function(scaleVal) {
+    let s = Number(scaleVal);
+    if (!Number.isFinite(s) || s <= 0) return;
+    if (s > 10) s = s / 100;
+    state.userScale = s;
+  };
+  window.setOpacity = function(op) {
+    const o = Number(op);
+    if (Number.isFinite(o)) state.userOpacity = Math.max(0, Math.min(1, op));
+  };
+  window.setTransparency = function(pct) {
+    window.setOpacity(1 - Number(pct) / 100);
+  };
+  window.setKeyMode = function(mode) {
+    state.keyMode = mode === 'green' ? 1 : 0;
+  };
+})();
+</script>
+</body>
+</html>

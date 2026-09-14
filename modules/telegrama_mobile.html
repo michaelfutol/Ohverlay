@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ohverlay · Telegrama ng Pagmamahal</title>
+<style>
+  :root {
+    --cream: #faf5eb;
+    --paper: #ffffff;
+    --border: #e2d7c3;
+    --ink: #2c251e;
+    --muted: #7c7062;
+    --red: #c0392b;
+    --blue: #2980b9;
+    --gold: #d4ac0d;
+    --green: #27ae60;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    text-align: center;
+    padding: 12px 0 6px;
+  }
+
+  .airmail-strip {
+    height: 6px;
+    width: 100%;
+    border-radius: 3px;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--red) 0,
+      var(--red) 12px,
+      transparent 12px,
+      transparent 18px,
+      var(--blue) 18px,
+      var(--blue) 30px,
+      transparent 30px,
+      transparent 36px
+    );
+    margin-bottom: 12px;
+  }
+
+  .title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ─── Main Dispatch Form ─── */
+  .paper-card {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    color: var(--ink);
+    background: #fffdf9;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--red);
+    background: #ffffff;
+  }
+
+  textarea {
+    resize: none;
+    height: 90px;
+    line-height: 1.5;
+    font-family: Georgia, serif;
+    font-style: italic;
+  }
+
+  .char-count {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ─── Quick Preset Buttons ─── */
+  .presets-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .presets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .preset-btn {
+    background: #fdfbf7;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .preset-btn:active, .preset-btn.active {
+    background: #fff4f2;
+    border-color: var(--red);
+    transform: scale(0.98);
+  }
+
+  .preset-icon-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .preset-sub {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ─── Send Button ─── */
+  .send-btn {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(192, 57, 43, 0.35);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .send-btn:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(192, 57, 43, 0.25);
+  }
+
+  .send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* ─── Live Status & Receipts ─── */
+  .status-box {
+    display: none;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: #166534;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .status-box.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .status-box strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .reply-highlight {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-left: 3px solid var(--green);
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="airmail-strip"></div>
+    <div class="title">✈️ Telegrama</div>
+    <div class="subtitle">Magpadala ng maikling paalala at pagmamahal sa desktop</div>
+  </div>
+
+  <!-- Dispatch Card Form -->
+  <div class="paper-card">
+    <div class="field-group">
+      <label for="senderName">Mula Kay (Pangalan o Palayaw)</label>
+      <input type="text" id="senderName" placeholder="Hal: Mahal Ko, Nanay, Papa, Beb" maxlength="32">
+    </div>
+
+    <!-- Quick Filipino Presets -->
+    <div class="presets-section">
+      <label>Pumili ng Mabilisang Paalala</label>
+      <div class="presets-grid">
+        <button class="preset-btn" data-msg="Uy inom ka na ng gamot at 1:00 PM, huwag kalimutan mahal ko ha. Ingat ka palagi." data-tag="medicine" data-emoji="💊">
+          <div class="preset-icon-title"><span>💊</span> Gamot Reminder</div>
+          <div class="preset-sub">Inom ka na ng gamot...</div>
+        </button>
+
+        <button class="preset-btn" data-msg="Kumain ka na ba mahal ko? Huwag magpapalipas ng gutom sa trabaho." data-tag="food" data-emoji="🍲">
+          <div class="preset-icon-title"><span>🍲</span> Kumain Ka Na</div>
+          <div class="preset-sub">Huwag magpalipas...</div>
+        </button>
+
+        <button class="preset-btn" data-msg="I love you mahal ko! Proud na proud ako sa iyo. Konting tiis lang, laban lang tayo palagi ❤️" data-tag="love" data-emoji="❤️">
+          <div class="preset-icon-title"><span>❤️</span> I Love You</div>
+          <div class="preset-sub">Proud ako sa iyo palagi...</div>
+        </button>
+
+        <button class="preset-btn" data-msg="Pahinga ka muna sandali sa screen, uminom ka ng tubig at mag-stretch." data-tag="break" data-emoji="☕">
+          <div class="preset-icon-title"><span>☕</span> Water & Pahinga</div>
+          <div class="preset-sub">Uminom ng tubig...</div>
+        </button>
+
+        <button class="preset-btn" data-msg="May meeting ka mamaya! Good luck, kayang-kaya mo yan. Galingan mo!" data-tag="meeting" data-emoji="💼">
+          <div class="preset-icon-title"><span>💼</span> Meeting Reminder</div>
+          <div class="preset-sub">Good luck mamaya...</div>
+        </button>
+
+        <button class="preset-btn" data-msg="Matulog ka nang maaga mamaya ha? Pahinga ang katawan para malakas palagi." data-tag="sleep" data-emoji="🛌">
+          <div class="preset-icon-title"><span>🛌</span> Tulog / Pahinga</div>
+          <div class="preset-sub">Pahinga ang katawan...</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label for="messageText">Mensahe ng Telegrama</label>
+      <textarea id="messageText" placeholder="Isulat ang iyong mensahe dito..." maxlength="180"></textarea>
+      <div class="char-count"><span id="charCount">0</span> / 180 titik</div>
+    </div>
+
+    <button class="send-btn" id="sendBtn">
+      <span>Ipadala ang Telegrama</span>
+      <span>✈️</span>
+    </button>
+  </div>
+
+  <!-- Status / Delivery / Reply Receipt -->
+  <div class="status-box" id="statusBox">
+    <strong id="statusTitle">✓ Naipadala na sa Desktop!</strong>
+    <p id="statusDesc">Nakatambad na ang iyong telegrama sa screen ng iyong mahal sa buhay.</p>
+    <div id="replyContainer" style="display:none;">
+      <div class="reply-highlight" id="replyTextContent"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Ohverlay · Telegrama para sa mga OFWs at Pamilya ❤️
+  </div>
+</div>
+
+<script>
+(() => {
+  const senderInput = document.getElementById('senderName');
+  const messageText = document.getElementById('messageText');
+  const charCount = document.getElementById('charCount');
+  const sendBtn = document.getElementById('sendBtn');
+  const statusBox = document.getElementById('statusBox');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusDesc = document.getElementById('statusDesc');
+  const replyContainer = document.getElementById('replyContainer');
+  const replyTextContent = document.getElementById('replyTextContent');
+
+  let currentTag = 'love';
+  let currentEmoji = '❤️';
+  let lastDispatchedId = null;
+  let replyPollTimer = null;
+
+  // Restore saved sender name
+  try {
+    const savedName = localStorage.getItem('telegrama_sender_name');
+    if (savedName) senderInput.value = savedName;
+  } catch(e) {}
+
+  // Character counter
+  messageText.addEventListener('input', () => {
+    charCount.textContent = messageText.value.length;
+  });
+
+  // Preset button clicks
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      messageText.value = btn.getAttribute('data-msg');
+      currentTag = btn.getAttribute('data-tag');
+      currentEmoji = btn.getAttribute('data-emoji');
+      charCount.textContent = messageText.value.length;
+      messageText.focus();
+    });
+  });
+
+  // Send dispatch
+  sendBtn.addEventListener('click', async () => {
+    const sender = senderInput.value.trim() || 'Mahal Ko';
+    const message = messageText.value.trim();
+    if (!message) {
+      alert('Mangyaring maglagay ng mensahe o pumili sa mga mabilisang paalala.');
+      messageText.focus();
+      return;
+    }
+
+    try {
+      localStorage.setItem('telegrama_sender_name', sender);
+    } catch(e) {}
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span>Ipinapadala...</span> <span>⏳</span>';
+
+    const dispatchId = 'tg_' + Date.now();
+    lastDispatchedId = dispatchId;
+
+    const payload = {
+      id: dispatchId,
+      sender: sender,
+      message: message,
+      tag: currentTag,
+      emoji: currentEmoji,
+      timestamp: Date.now()
+    };
+
+    try {
+      const res = await fetch('/api/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showStatus('✓ Naipadala na sa Desktop!', 'Nakatambad na ang iyong telegrama sa screen ng iyong mahal sa buhay. Naghihintay ng tugon...');
+        startReplyPolling(dispatchId);
+      } else {
+        showStatus('✓ Naitala ang Telegrama', 'Naitala ang mensahe. Ipinapasa sa desktop runtime.');
+      }
+    } catch(err) {
+      // Offline fallback
+      showStatus('✓ Naipadala (Local)', 'Naipadala ang mensahe sa Ohverlay desktop!');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<span>Ipadala ang Telegrama</span> <span>✈️</span>';
+    }
+  });
+
+  function showStatus(title, desc) {
+    statusBox.classList.add('show');
+    statusTitle.textContent = title;
+    statusDesc.textContent = desc;
+    replyContainer.style.display = 'none';
+  }
+
+  function startReplyPolling(dispatchId) {
+    if (replyPollTimer) clearInterval(replyPollTimer);
+    replyPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/status?id=${dispatchId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.reply) {
+            clearInterval(replyPollTimer);
+            statusTitle.textContent = '🎉 May Tugon Mula sa Desktop!';
+            statusDesc.textContent = 'Binuksan at sinagot ng iyong mahal sa buhay:';
+            replyContainer.style.display = 'block';
+            replyTextContent.textContent = `"${data.reply}"`;
+          }
+        }
+      } catch(e) {}
+    }, 2000);
+  }
+})();
+</script>
+</body>
+</html>

@@ -6,8 +6,8 @@ Each overlay runs in its own transparent, always-on-top window.
 import os
 import sys
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QGuiApplication, QColor
+from PySide6.QtCore import Qt, QUrl, QTimer
+from PySide6.QtGui import QGuiApplication, QColor, QCursor
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -20,6 +20,78 @@ from utils.logger import logger
 
 
 OVERLAY_REGISTRY = [
+    {
+        "id": "moon",
+        "name": "Local Moon",
+        "file": "marketplace-overlays/moon-overlay.html",
+        "category": "ambient",
+        "description": "Local Moon with current phase, orientation, distance, true sky altitude, and occasional drifting clouds",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "orchid",
+        "name": "Living Moth Orchid",
+        "file": "marketplace-overlays/orchid-overlay.html",
+        "category": "ambient",
+        "description": "Waxy Phalaenopsis with an arching flower spike, cursor physics, and an eight-hour bloom succession",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "butterfly_blue",
+        "name": "Blue Butterfly",
+        "file": "marketplace-overlays/butterflies-blue-overlay.html",
+        "category": "ambient",
+        "description": "Photo-textured 3D Blue Butterfly with realistic flight and landing",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "butterfly_yellow",
+        "name": "Yellow Butterfly",
+        "file": "marketplace-overlays/butterflies-yellow-overlay.html",
+        "category": "ambient",
+        "description": "Photo-textured 3D Yellow Butterfly with realistic flight and landing",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "butterfly_orange",
+        "name": "Orange Butterfly",
+        "file": "marketplace-overlays/butterflies-orange-overlay.html",
+        "category": "ambient",
+        "description": "Photo-textured 3D Orange Butterfly with realistic flight and landing",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "hornwort",
+        "name": "Hornwort Plant",
+        "file": "ohverlay-hornwort.html",
+        "category": "ambient",
+        "description": "Eight-hour growing hornwort plant with gentle water physics",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "neon_tetra",
+        "name": "Neon Tetra",
+        "file": "tetra-overlay.html",
+        "category": "ambient",
+        "description": "Realistic 3D WebGL Neon Tetra with volumetric head-led turns and translucent fins",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "betta_fish",
+        "name": "Betta Fish",
+        "file": "beta7.html",
+        "category": "ambient",
+        "description": "Hyperrealistic Canary-Gold & Cobalt Blue Halfmoon Betta Fish with procedural fins and view-dependent highlights",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
+    {
+        "id": "cichlid",
+        "name": "Jewel Cichlid",
+        "file": "jewel-cichlid1 (6).html",
+        "category": "ambient",
+        "description": "Three-dimensional red-orange Jewel Cichlid with cyan reflective speckles, front-view inspection and gill cover respiration",
+        "extra_params": {"transparent": "1", "controls": "0"},
+    },
     {
         "id": "nature_world",
         "name": "Unified Nature World",
@@ -46,18 +118,12 @@ OVERLAY_REGISTRY = [
         "name": "Realistic Dragonflies",
         "file": "dragonflies-overlay.html",
         "category": "ambient",
-        "description": "Two realistic dragonflies hovering and darting",
-    },
-    {
-        "id": "sakura_petals",
-        "name": "Sakura Cherry Blossom Petals",
-        "file": "sakura-petals-overlay.html",
-        "category": "ambient",
-        "description": "Translucent sakura petals falling, resting at taskbar ground, and blown by 5-minute breeze",
+        "description": "High-fidelity WebGL dragonfly flight study with species presets, aerodynamic steering, and interactive reactions",
+        "extra_params": {"transparent": "1", "controls": "0"},
     },
     {
         "id": "sticky_note",
-        "name": "Technical Office Sticky Note",
+        "name": "Vintage Sticky Note",
         "file": "sticky-note-overlay.html",
         "category": "office",
         "description": "Persistent technical instruction note with task deadline countdown, pin/tape styles, and drag-and-drop",
@@ -70,18 +136,14 @@ OVERLAY_REGISTRY = [
         "description": "Spaced repetition exam study flashcard overlay",
     },
     {
-        "id": "personal_va",
-        "name": "Personal VA Companion",
-        "file": "personal-va-overlay.html",
-        "category": "productivity",
-        "description": "Sleek personal VA assistant with workstation tasks and messaging hooks",
-    },
-    {
-        "id": "live_widgets",
-        "name": "Live Weather, Stocks & News",
-        "file": "live-widgets-overlay.html",
-        "category": "widgets",
-        "description": "Real-time weather, stock/crypto ticker, and news headlines drifting on desktop",
+        "id": "telegrama",
+        "name": "Telegrama & Hallmark Dispatch",
+        "file": "telegrama-overlay.html",
+        "category": "personal",
+        "description": "Literal paper telegram and Hallmark card for thoughtful 2-way messages from OFWs and family",
+        "interactive": True,
+        "window_size": (480, 420),
+        "extra_params": {"transparent": "1"},
     },
 ]
 
@@ -104,14 +166,15 @@ class OverlayWindow(QMainWindow):
         super().__init__(parent)
         self.overlay_id = overlay_info["id"]
         self.overlay_info = overlay_info
-        self._intended_geometry = screen_geometry
 
+        is_interactive = overlay_info.get("interactive", False)
         flags = (
             Qt.FramelessWindowHint |
             Qt.WindowStaysOnTopHint |
-            Qt.Tool |
-            Qt.WindowTransparentForInput
+            Qt.Tool
         )
+        if not is_interactive:
+            flags |= Qt.WindowTransparentForInput
 
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -138,9 +201,54 @@ class OverlayWindow(QMainWindow):
         layout.addWidget(self.web_view)
         self.setCentralWidget(central)
 
-        self.setGeometry(screen_geometry)
-        self.setFixedSize(screen_geometry.width(), screen_geometry.height())
-        self.move(screen_geometry.topLeft())
+        # Set geometry
+        if "window_size" in overlay_info:
+            w, h = overlay_info["window_size"]
+            x = screen_geometry.x() + (screen_geometry.width() - w) // 2
+            y = screen_geometry.y() + (screen_geometry.height() - h) // 2
+            self.setGeometry(x, y, w, h)
+        else:
+            self.setGeometry(screen_geometry)
+
+        # Cursor tracking for non-interactive ambient overlays
+        if not is_interactive:
+            self._mouse_timer = QTimer(self)
+            self._mouse_timer.setInterval(33)  # ~30 Hz cursor tracking
+            self._last_cursor_pos = None
+            self._cursor_inside = False
+            self._mouse_timer.timeout.connect(self._track_cursor)
+            self._mouse_timer.start()
+
+    def _track_cursor(self):
+        try:
+            pos = QCursor.pos()
+            if pos != self._last_cursor_pos:
+                if self._last_cursor_pos is not None:
+                    dx = abs(pos.x() - self._last_cursor_pos.x())
+                    dy = abs(pos.y() - self._last_cursor_pos.y())
+                    if dx < 3 and dy < 3:
+                        return
+                self._last_cursor_pos = pos
+                geo = self.geometry()
+                if geo.contains(pos):
+                    self._cursor_inside = True
+                    rel_x = pos.x() - geo.x()
+                    rel_y = pos.y() - geo.y()
+                    self.web_page.runJavaScript(
+                        f"if (window.__onCursorMove) window.__onCursorMove({rel_x}, {rel_y});"
+                    )
+                elif self._cursor_inside:
+                    self._cursor_inside = False
+                    self.web_page.runJavaScript(
+                        "if (window.__onCursorLeave) window.__onCursorLeave();"
+                    )
+        except Exception:
+            pass
+
+    def closeEvent(self, event):
+        if hasattr(self, "_mouse_timer") and self._mouse_timer.isActive():
+            self._mouse_timer.stop()
+        super().closeEvent(event)
 
     def load_local_html(self, relative_path, scale=1.0, count=None, extra_params=None):
         file_path = os.path.abspath(relative_path)
@@ -170,42 +278,47 @@ class OverlayManager:
 
     def __init__(self, config=None):
         self.config = config
-        self.available = HAS_WEBENGINE
         self._active = {}
         self._global_visible = True
 
-    def get_registry(self):
-        return OVERLAY_REGISTRY
+    @property
+    def available(self):
+        return HAS_WEBENGINE
 
-    def _get_total_virtual_geometry(self):
-        """Calculate the total bounding box spanning all monitors."""
+    def _get_combined_screen_geometry(self):
         screens = QGuiApplication.screens()
         if not screens:
             return None
-            
-        min_x = min(s.geometry().x() for s in screens)
-        min_y = min(s.geometry().y() for s in screens)
-        max_right = max(s.geometry().right() for s in screens)
-        max_bottom = max(s.geometry().bottom() for s in screens)
-        
-        from PySide6.QtCore import QRect
-        return QRect(min_x, min_y, max_right - min_x + 1, max_bottom - min_y + 1)
+        combined = screens[0].geometry()
+        for screen in screens[1:]:
+            combined = combined.united(screen.geometry())
+        return combined
+
+    def _get_taskbar_horizon_y(self, virtual_geometry):
+        screen = QGuiApplication.primaryScreen()
+        if not screen:
+            return virtual_geometry.height()
+        full = screen.geometry()
+        available = screen.availableGeometry()
+        horizon_global = available.bottom() + 1 if available.bottom() < full.bottom() else full.bottom() + 1
+        return max(0, min(virtual_geometry.height(), horizon_global - virtual_geometry.y()))
 
     def open_overlay(self, overlay_id, save_state=True):
         if not self.available:
+            return False
+
+        info = next((item for item in OVERLAY_REGISTRY if item["id"] == overlay_id), None)
+        if not info:
+            logger.warning(f"Unknown overlay id: {overlay_id}")
             return False
 
         if overlay_id in self._active:
             self._active[overlay_id].show()
             return True
 
-        info = next((o for o in OVERLAY_REGISTRY if o["id"] == overlay_id), None)
-        if not info:
-            logger.error(f"Unknown overlay ID: {overlay_id}")
-            return False
-
-        geometry = self._get_total_virtual_geometry()
+        geometry = self._get_combined_screen_geometry()
         if not geometry:
+            logger.error("No screens found")
             return False
 
         win = OverlayWindow(info, geometry)
@@ -224,17 +337,300 @@ class OverlayManager:
                 except (ValueError, TypeError):
                     count = None
 
-        if win.load_local_html(info["file"], scale=scale, count=count):
+        extra_params = dict(info.get("extra_params") or {})
+        if self.config:
+            opacity_val = self.config.get("overlays", f"{overlay_id}_opacity")
+            if opacity_val is not None:
+                try:
+                    op = float(opacity_val)
+                    extra_params["opacity"] = op
+                except (ValueError, TypeError):
+                    pass
+
+        if overlay_id == "hornwort" and self.config:
+            spd = self.config.get("overlays", "hornwort_growth_speed") or 1.0
+            extra_params["speed"] = spd
+            xmas_enabled = self.config.get("overlays", "hornwort_xmas_lights") or False
+            xmas_mode = self.config.get("overlays", "hornwort_xmas_mode") or "twinkle"
+            xmas_theme = self.config.get("overlays", "hornwort_xmas_theme") or "multicolor"
+            if xmas_enabled:
+                extra_params["xmas"] = "1"
+                extra_params["xmas_mode"] = str(xmas_mode)
+                extra_params["xmas_theme"] = str(xmas_theme)
+
+        if overlay_id == "betta_fish" and self.config:
+            breed = self.config.get("overlays", "betta_fish_breed") or "buttercup"
+            extra_params["breed"] = str(breed)
+
+        if overlay_id == "orchid" and self.config:
+            color = self.config.get("overlays", "orchid_color") or "fuchsia"
+            extra_params["color"] = str(color)
+
+        if overlay_id in ("moon", "orchid"):
+            extra_params["ground"] = self._get_taskbar_horizon_y(geometry)
+
+        if overlay_id == "moon" and self.config:
+            latitude = self.config.get("overlays", "moon_latitude")
+            longitude = self.config.get("overlays", "moon_longitude")
+            if latitude is not None and longitude is not None:
+                extra_params["lat"] = latitude
+                extra_params["lon"] = longitude
+
+        if overlay_id == "dragonflies" and self.config:
+            palette = self.config.get("overlays", "dragonflies_palette") or "mixed"
+            extra_params["palette"] = str(palette)
+            style = self.config.get("overlays", "dragonflies_style") or "percher"
+            extra_params["style"] = str(style)
+
+        if overlay_id == "dandelions" and self.config:
+            style = self.config.get("overlays", "dandelions_style") or "cyan"
+            extra_params["style"] = str(style)
+
+        if win.load_local_html(info["file"], scale=scale, count=count, extra_params=extra_params):
             self._active[overlay_id] = win
             if self._global_visible:
-                win.show()
-                win.setWindowFlags(win.windowFlags() | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool | Qt.WindowTransparentForInput)
                 win.show()
 
             if save_state and self.config:
                 self.config.set("overlays", overlay_id, True)
             return True
         return False
+
+    def set_overlay_opacity(self, overlay_id, opacity):
+        """Update opacity/transparency of an active overlay live without reloading."""
+        if overlay_id in self._active:
+            win = self._active[overlay_id]
+            t_pct = int(round(max(0.0, min(1.0, 1.0 - opacity)) * 100))
+            win.web_page.runJavaScript(f"if(window.setTransparency) window.setTransparency({t_pct});")
+            win.web_page.runJavaScript(f"if(window.setOpacity) window.setOpacity({opacity});")
+
+    def set_overlay_scale(self, overlay_id, scale):
+        """Update scale/size of an active overlay live without reloading."""
+        if overlay_id in self._active:
+            win = self._active[overlay_id]
+            win.web_page.runJavaScript(f"if(window.setScale) window.setScale({scale});")
+
+    def set_hornwort_growth_speed(self, speed):
+        """Update Hornwort growth speed multiplier live without reloading (clamped 1.0 to 5.0)."""
+        try:
+            clamped_speed = max(1.0, min(5.0, float(speed)))
+        except (ValueError, TypeError):
+            clamped_speed = 1.0
+        if "hornwort" in self._active:
+            win = self._active["hornwort"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setGrowthSpeed) window.setGrowthSpeed({clamped_speed});")
+
+    def restart_hornwort_growth(self):
+        """Restart hornwort plant growth from age 0."""
+        if "hornwort" in self._active:
+            win = self._active["hornwort"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.restartGrowth) window.restartGrowth();")
+                logger.info("Hornwort growth restarted via OverlayManager.")
+
+    def set_hornwort_xmas_lights(self, enabled, mode="twinkle", theme="multicolor"):
+        """Update Hornwort Christmas lights live without reloading."""
+        if "hornwort" in self._active:
+            win = self._active["hornwort"]
+            if win and win.web_page:
+                js = f"if(window.setXmasLights) window.setXmasLights({str(bool(enabled)).lower()}, '{mode}', '{theme}');"
+                win.web_page.runJavaScript(js)
+
+    def set_betta_fish_breed(self, breed):
+        """Update Betta Fish breed live without reloading."""
+        if "betta_fish" in self._active:
+            win = self._active["betta_fish"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.__setBettaBreed) window.__setBettaBreed('{breed}');")
+
+    def set_orchid_color(self, color):
+        """Update the living orchid palette without restarting its lifecycle."""
+        allowed = {"fuchsia", "blush", "white", "violet", "sunset"}
+        selected = color if color in allowed else "fuchsia"
+        if "orchid" in self._active:
+            win = self._active["orchid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setOrchidColor) window.setOrchidColor('{selected}');")
+
+    def set_dragonflies_palette(self, palette):
+        """Update Dragonfly species/palette preset live without reloading."""
+        if "dragonflies" in self._active:
+            win = self._active["dragonflies"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setPalette) window.setPalette('{palette}');")
+
+    def set_dragonflies_style(self, style):
+        """Update Dragonfly flight style live without reloading."""
+        if "dragonflies" in self._active:
+            win = self._active["dragonflies"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setStyle) window.setStyle('{style}');")
+
+    def set_dandelions_style(self, style):
+        """Update Dandelion style live without reloading."""
+        if "dandelions" in self._active:
+            win = self._active["dandelions"]
+            if win and win.web_page:
+                escaped = str(style).replace("'", "\\'")
+                win.web_page.runJavaScript(f"if(window.__setDandelionStyle) window.__setDandelionStyle('{escaped}');")
+
+    def dragonflies_startle(self):
+        """Startle all dragonflies into evasive flight."""
+        if "dragonflies" in self._active:
+            win = self._active["dragonflies"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.scatter) window.scatter();")
+
+    def dragonflies_roam(self):
+        """Command all resting dragonflies to take flight."""
+        if "dragonflies" in self._active:
+            win = self._active["dragonflies"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.roam) window.roam();")
+
+    def toggle_dragonflies_controls(self):
+        """Toggle in-overlay HUD control panel."""
+        if "dragonflies" in self._active:
+            win = self._active["dragonflies"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+
+    def set_moon_location(self, lat, lon):
+        """Update Moon coordinates live without reloading."""
+        if "moon" in self._active:
+            win = self._active["moon"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setLocation) window.setLocation({lat}, {lon});")
+
+    def toggle_moon_preview(self, force=None):
+        """Toggle Moon preview mode (always visible) live."""
+        if "moon" in self._active:
+            win = self._active["moon"]
+            if win and win.web_page:
+                arg = f"{'true' if force else 'false'}" if force is not None else ""
+                win.web_page.runJavaScript(f"if(window.togglePreview) window.togglePreview({arg});")
+
+    def toggle_moon_dock(self, force=None):
+        """Toggle Moon docking right above taskbar tray vs sky altitude."""
+        if "moon" in self._active:
+            win = self._active["moon"]
+            if win and win.web_page:
+                arg = f"{'true' if force else 'false'}" if force is not None else ""
+                win.web_page.runJavaScript(f"if(window.toggleDock) window.toggleDock({arg});")
+
+    def toggle_moon_clouds(self, force=None):
+        """Toggle Moon drifting clouds live."""
+        if "moon" in self._active:
+            win = self._active["moon"]
+            if win and win.web_page:
+                arg = f"{'true' if force else 'false'}" if force is not None else ""
+                win.web_page.runJavaScript(f"if(window.toggleClouds) window.toggleClouds({arg});")
+
+    def toggle_moon_controls(self):
+        """Toggle Moon in-overlay HUD control panel."""
+        if "moon" in self._active:
+            win = self._active["moon"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+
+    def set_cichlid_count(self, count):
+        """Update Jewel Cichlid count live."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setCount) window.setCount({count});")
+
+    def cichlid_dart(self):
+        """Command Jewel Cichlid to dart & brake."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.dart) window.dart();")
+
+    def cichlid_turn(self):
+        """Command Jewel Cichlid to turn around."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.turn) window.turn();")
+
+    def cichlid_dig(self):
+        """Command Jewel Cichlid to dig at sand."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.dig) window.dig();")
+
+    def cichlid_return_home(self):
+        """Command Jewel Cichlid to return home."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.returnHome) window.returnHome();")
+
+    def cichlid_graze(self):
+        """Command Jewel Cichlid to visit hornwort and graze on algae."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.graze) window.graze();")
+
+    def cichlid_cruise(self):
+        """Command Jewel Cichlid to cruise freely in open water."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.cruise) window.cruise();")
+
+    def cichlid_front_view(self):
+        """Toggle Jewel Cichlid front-view shape study."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.frontView) window.frontView();")
+
+    def cichlid_toggle_pair(self):
+        """Toggle Jewel Cichlid paired demo."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.togglePair) window.togglePair();")
+
+    def toggle_cichlid_controls(self):
+        """Toggle Jewel Cichlid in-overlay HUD control panel."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+
+    def cichlid_set_breeding_speed(self, speed):
+        """Set Jewel Cichlid breeding simulation speed multiplier."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript(f"if(window.setBreedingSpeed) window.setBreedingSpeed({float(speed)});")
+
+    def cichlid_set_breeding_stage(self, stage):
+        """Set Jewel Cichlid breeding stage override ('courtship', 'eggs', 'eyed', 'wrigglers', 'fry', 'auto')."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                clean_stage = str(stage).replace("'", "").replace('"', "")
+                win.web_page.runJavaScript(f"if(window.setBreedingStage) window.setBreedingStage('{clean_stage}');")
+
+    def cichlid_reset_breeding(self):
+        """Reset Jewel Cichlid breeding lifecycle back to beginning."""
+        if "cichlid" in self._active:
+            win = self._active["cichlid"]
+            if win and win.web_page:
+                win.web_page.runJavaScript("if(window.resetBreeding) window.resetBreeding();")
+
+    def reload_overlay(self, overlay_id):
+        """Reload an active overlay with updated configuration (e.g. count, scale)."""
+        if overlay_id in self._active:
+            self.close_overlay(overlay_id, save_state=False)
+            self.open_overlay(overlay_id, save_state=False)
 
     def close_overlay(self, overlay_id, save_state=True):
         if overlay_id in self._active:

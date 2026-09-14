@@ -11,8 +11,12 @@ from PySide6.QtCore import QTimer
 from ui.tray import SystemTray
 from ui.control_center import ControlCenter
 from ui.welcome import WelcomeGuide
+from ui.master_dashboard import MasterDashboard
 from config.settings import Settings
 from modules.overlay_manager import OverlayManager
+from modules.sticky_notes import StickyNoteManager
+from modules.audit_store import AuditStore
+from modules.telegrama_service import TelegramaService
 from utils.logger import logger
 
 
@@ -20,14 +24,16 @@ class OhverlayApp:
     """Main application controller — Minimal Nature Overlay Runtime."""
 
     def __init__(self):
-        # Fix transparent window rendering bugs on Windows with Chromium QWebEngine
+        # Enable hardware acceleration and prevent background occlusion throttling (eliminates white-to-dark background flicker)
         sys.argv.extend([
-            "--disable-gpu-compositing",
             "--enable-gpu-rasterization",
             "--ignore-gpu-blocklist",
             "--num-raster-threads=4",
             "--allow-file-access-from-files",
-            "--autoplay-policy=no-user-gesture-required"
+            "--autoplay-policy=no-user-gesture-required",
+            "--disable-renderer-backgrounding",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows"
         ])
         self.app = QApplication(sys.argv)
         self.app.setApplicationName("Ohverlay")
@@ -41,6 +47,11 @@ class OhverlayApp:
         self.config = Settings()
 
         # Initialize subsystems
+        self.audit_store = AuditStore()
+        self.sticky_manager = StickyNoteManager(config=self.config, audit_store=self.audit_store)
+        self.master_dashboard = MasterDashboard(sticky_manager=self.sticky_manager, audit_store=self.audit_store)
+        self.telegrama_service = TelegramaService()
+        self.telegrama_service.start()
         self._init_overlay_manager()
         self._init_ui_subsystems()
         self._init_hotkeys()
@@ -48,8 +59,10 @@ class OhverlayApp:
         # First-run onboarding check
         if not self.config.get("onboarding", "welcome_completed"):
             QTimer.singleShot(800, self._on_show_welcome)
+        else:
+            QTimer.singleShot(400, self.control_center.show_panel)
 
-        logger.info("Ohverlay initialized — Minimal Nature Overlay Runtime ready!")
+        logger.info("Ohverlay initialized — Minimal Nature & Master Sticky Notes ready!")
 
     def _init_overlay_manager(self):
         """Initialize the HTML overlay system."""
@@ -61,19 +74,23 @@ class OhverlayApp:
             logger.warning("Overlay Manager: QWebEngine not installed — HTML overlays disabled")
 
     def _init_ui_subsystems(self):
-        """Create system tray icon, persistent control center, and onboarding guide."""
+        """Create system tray icon, persistent control center, master dashboard, and onboarding guide."""
         self.tray = SystemTray(config=self.config, overlay_manager=self.overlay_manager)
         self.control_center = ControlCenter(config=self.config, overlay_manager=self.overlay_manager)
         self.welcome_guide = WelcomeGuide(config=self.config, tray=self.tray)
 
         # Tray signals
         self.tray.signals.open_control_center.connect(self._on_open_control_center)
+        self.tray.signals.open_master_dashboard.connect(self._on_open_master_dashboard)
+        self.tray.signals.new_sticky_note.connect(self._on_new_sticky_note)
         self.tray.signals.show_welcome.connect(self._on_show_welcome)
         self.tray.signals.toggle_visibility.connect(self._on_toggle_visibility)
         self.tray.signals.quit_app.connect(self._on_quit)
         self.tray.signals.debug_canvas_extents.connect(self._on_debug_canvas_extents)
 
         # Control Center signals
+        self.control_center.open_master_dashboard_requested.connect(self._on_open_master_dashboard)
+        self.control_center.new_sticky_requested.connect(self._on_new_sticky_note)
         self.control_center.show_welcome_requested.connect(self._on_show_welcome)
         self.control_center.toggle_all_requested.connect(self._on_toggle_visibility)
         self.control_center.quit_requested.connect(self._on_quit)
@@ -119,6 +136,22 @@ class OhverlayApp:
 
     # --- Signal handlers ---
 
+    def _on_open_master_dashboard(self):
+        """Open or toggle the Master Task & Sticky Notes Dashboard."""
+        self.master_dashboard.show()
+        self.master_dashboard.raise_()
+        self.master_dashboard.activateWindow()
+
+    def _on_new_sticky_note(self):
+        """Create and display a new customizable Sticky Note."""
+        note = self.sticky_manager.create_note()
+        note.show()
+        note.raise_()
+        note.activateWindow()
+        if self.master_dashboard.isVisible():
+            self.master_dashboard.refresh_active_table()
+            self.master_dashboard.refresh_history_table()
+
     def _on_open_control_center(self):
         """Open or toggle the persistent Control Center."""
         if self.control_center.isVisible() and self.control_center.isActiveWindow():
@@ -144,6 +177,12 @@ class OhverlayApp:
                 self._hotkey_listener.stop()
             except Exception:
                 pass
+        if hasattr(self, "telegrama_service") and self.telegrama_service:
+            try:
+                self.telegrama_service.stop()
+            except Exception:
+                pass
+        self.sticky_manager.save_notes()
         self.overlay_manager.close_all()
         self.config.save()
         self.app.quit()

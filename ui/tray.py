@@ -4,8 +4,8 @@ Provides a minimal fallback right-click menu and left-click activation for the C
 """
 
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QRadialGradient, QPen
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QRadialGradient, QPen, QDesktopServices
+from PySide6.QtCore import Qt, Signal, QObject, QUrl
 import os
 from utils.logger import logger
 
@@ -13,6 +13,8 @@ from utils.logger import logger
 class TraySignals(QObject):
     """Signals emitted by tray actions."""
     open_control_center = Signal()
+    open_master_dashboard = Signal()
+    new_sticky_note = Signal()
     show_welcome = Signal()
     toggle_visibility = Signal()
     quit_app = Signal()
@@ -30,7 +32,7 @@ class SystemTray(QSystemTrayIcon):
 
         self._create_icon()
         self._create_menu()
-        self.setToolTip("Ohverlay — Nature Controls")
+        self.setToolTip("Ohverlay — Vintage Controls")
         self.activated.connect(self._on_activated)
 
     def _create_icon(self):
@@ -66,12 +68,49 @@ class SystemTray(QSystemTrayIcon):
     def _create_menu(self):
         """Build minimal fallback right-click context menu."""
         menu = QMenu()
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 6px;
+                color: #0f172a;
+                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                font-size: 12px;
+            }
+            QMenu::item {
+                padding: 6px 14px;
+                border-radius: 4px;
+                background-color: transparent;
+            }
+            QMenu::item:selected {
+                background-color: #f1f5f9;
+                color: #0f172a;
+            }
+            QMenu::item:disabled {
+                color: #94a3b8;
+                font-weight: 600;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #e2e8f0;
+                margin: 4px 6px;
+            }
+        """)
 
         header = menu.addAction("Ohverlay")
         header.setEnabled(False)
         menu.addSeparator()
 
-        ctrl_action = menu.addAction("Open Nature Controls")
+        dash_action = menu.addAction("Master Task Dashboard")
+        dash_action.triggered.connect(self.signals.open_master_dashboard.emit)
+
+        new_note_action = menu.addAction("New Sticky Note")
+        new_note_action.triggered.connect(self.signals.new_sticky_note.emit)
+
+        menu.addSeparator()
+
+        ctrl_action = menu.addAction("Open Controls")
         ctrl_action.triggered.connect(self.signals.open_control_center.emit)
 
         visibility_action = menu.addAction("Toggle All Overlays (Ctrl+Alt+H)")
@@ -79,6 +118,9 @@ class SystemTray(QSystemTrayIcon):
 
         welcome_action = menu.addAction("Show Welcome Guide")
         welcome_action.triggered.connect(self.signals.show_welcome.emit)
+
+        telegrama_action = menu.addAction("Telegrama Mobile Dispatcher ✈️")
+        telegrama_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("http://localhost:54321/telegrama")))
 
         if os.environ.get("OHVERLAY_DEBUG") == "1":
             debug_action = menu.addAction("Debug: Show Canvas Extent")

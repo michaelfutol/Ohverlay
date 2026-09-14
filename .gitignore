@@ -214,3 +214,11 @@ package-lock.json
 ecosystem.js
 *.rar
 .venv*/
+scratch/
+scratch_*.html
+*.bundle
+*.backup*
+*.mp4
+stderr.txt
+installer_output/
+

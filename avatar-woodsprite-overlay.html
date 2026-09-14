@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Eywa Woodsprites (Atokirina) — Sacred Tree Spirits of Pandora</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="world"></canvas>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const canvas = document.getElementById('world');
+      const ctx = canvas.getContext('2d', { alpha: true });
+      const query = new URLSearchParams(location.search);
+      const WOODSPRITE_COUNT = Math.max(1, Math.min(12, parseInt(query.get('count') || '5', 10)));
+      const globalScale = parseFloat(query.get('scale')) || 1.0;
+      const TAU = Math.PI * 2;
+
+      let width = 1;
+      let height = 1;
+      let pixelRatio = 1;
+      let lastTime = performance.now();
+      let mouseX = -9999;
+      let mouseY = -9999;
+      let mouseSpeed = 0;
+      let lastMouseX = -9999;
+      let lastMouseY = -9999;
+
+      window.addEventListener('mousemove', (e) => {
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        mouseSpeed = Math.hypot(dx, dy);
+        lastMouseX = mouseX = e.clientX;
+        lastMouseY = mouseY = e.clientY;
+      });
+
+      function resize() {
+        width = Math.max(1, window.innerWidth || document.documentElement.clientWidth);
+        height = Math.max(1, window.innerHeight || document.documentElement.clientHeight);
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+        ctx.resetTransform();
+        ctx.scale(pixelRatio, pixelRatio);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // Lightweight ambient stardust motes (Pandoran night air)
+      const MAX_MOTES = 35;
+      const motes = [];
+
+      function spawnMote(x, y, vx, vy) {
+        if (motes.length >= MAX_MOTES) motes.shift();
+        motes.push({
+          x: x + (Math.random() - 0.5) * 6,
+          y: y + (Math.random() - 0.5) * 6,
+          vx: vx * 0.2 + (Math.random() - 0.5) * 0.25,
+          vy: vy * 0.2 - Math.random() * 0.2,
+          radius: (Math.random() * 1.2 + 0.8) * globalScale,
+          alpha: 1.0,
+          decay: Math.random() * 0.012 + 0.008,
+        });
+      }
+
+      // ── Helper: Draw Feather Lancelet (Tip of Fountain Tentacle) ──
+      function drawFeatherTip(ctx, x, y, angle, length, width, alpha, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // 1. Central quill spine
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
+        ctx.lineWidth = 1.0 * scale;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, length);
+        ctx.stroke();
+
+        // 2. Glowing feather vane outline
+        ctx.fillStyle = `rgba(220, 248, 255, ${(alpha * 0.45).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(width * 0.8, length * 0.35, width, length * 0.7, 0, length);
+        ctx.bezierCurveTo(-width, length * 0.7, -width * 0.8, length * 0.35, 0, 0);
+        ctx.fill();
+
+        // 3. Delicate herringbone feather barbs
+        ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.75).toFixed(3)})`;
+        ctx.lineWidth = 0.6 * scale;
+        ctx.beginPath();
+        const steps = 4;
+        for (let s = 1; s <= steps; s++) {
+          const py = length * (s / (steps + 1));
+          const pw = width * (1.0 - (s / (steps + 2)));
+          // Left barb
+          ctx.moveTo(0, py);
+          ctx.lineTo(-pw, py + 2.5 * scale);
+          // Right barb
+          ctx.moveTo(0, py);
+          ctx.lineTo(pw, py + 2.5 * scale);
+        }
+        ctx.stroke();
+
+        // 4. Bright bioluminescent starlet at feather tip
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(0, length, 1.2 * scale, 0, TAU);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      // ── Eywa Woodsprite (Atokirina) Class ──
+      // Faithful recreation of James Cameron's Avatar Tree of Souls Seed
+      class Woodsprite {
+        constructor(index) {
+          this.index = index;
+          this.init(true);
+        }
+
+        init(initialSpread = false) {
+          this.x = Math.random() * width;
+          // Graceful descent drifting down from Hometree canopy
+          this.y = initialSpread ? Math.random() * height : -120 - Math.random() * 100;
+          this.scale = (Math.random() * 0.25 + 0.88) * globalScale;
+
+          // Pure weightless drift velocities
+          this.vx = (Math.random() - 0.5) * 0.32;
+          this.vy = Math.random() * 0.22 + 0.28; // Tranquil downward glide
+
+          // 3D vertical axis rotation (creates genuine volumetric depth)
+          this.rotY = Math.random() * TAU;
+          this.rotSpeed = (Math.random() * 0.007 + 0.004) * (Math.random() < 0.5 ? 1 : -1);
+
+          // Natural air pendulum sway & breathing
+          this.tilt = 0;
+          this.tiltVelocity = 0;
+          this.phase = Math.random() * TAU;
+          this.breathePhase = Math.random() * TAU;
+          this.breatheSpeed = Math.random() * 0.02 + 0.016;
+
+          // Anatomy Specs (Matching Avatar movie reference)
+          this.tentacleCount = 18; // 18 weeping fountain tentacles around apex
+          this.fountainRadius = 42 * this.scale;
+          this.fountainCrestY = -58 * this.scale; // High apex curve above stem
+          this.fountainTipY = 48 * this.scale;    // Cascading down past the body
+          this.spoutY = -22 * this.scale;         // Where tentacles sprout from stalk
+
+          // Inner feathered angel-wing petals (4 around body)
+          this.wingCount = 4;
+          this.wingSpread = 20 * this.scale;
+          this.wingBottomY = 24 * this.scale;
+
+          // Hanging tail rootlet tassels (beneath seed pod)
+          this.tasselCount = 4;
+          this.tassels = [];
+          for (let i = 0; i < this.tasselCount; i++) {
+            this.tassels.push({
+              length: (Math.random() * 16 + 24) * this.scale,
+              offsetPhase: Math.random() * TAU,
+            });
+          }
+
+          this.moteTimer = 0;
+        }
+
+        update(dt, t) {
+          this.breathePhase += this.breatheSpeed;
+          this.rotY += this.rotSpeed;
+
+          // 1. Natural Pandora atmospheric currents (gentle wafting breeze)
+          const waftX = Math.sin(t * 0.55 + this.phase) * 0.35 + Math.sin(t * 1.3 + this.phase * 2) * 0.15;
+          const waftY = Math.cos(t * 0.40 + this.phase) * 0.12;
+
+          const targetVy = 0.26 + waftY;
+          this.vx += (waftX - this.vx * 0.05) * 0.04;
+          this.vy += (targetVy - this.vy * 0.05) * 0.04;
+
+          // 2. Jake Sully Interaction: Curious attraction to stationary cursor
+          const dx = mouseX - this.x;
+          const dy = mouseY - this.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < 240 && dist > 15) {
+            if (mouseSpeed < 2.0) {
+              // Cursor is still (Jake holding out his arm): woodsprite softly perches near cursor
+              const pull = (1 - dist / 240) * 0.25;
+              this.vx += (dx / dist) * pull;
+              this.vy += (dy / dist) * pull * 0.6;
+            } else {
+              // Rapid cursor movement: gentle flutter away from draft
+              const push = (1 - dist / 240) * 0.45;
+              this.vx -= (dx / dist) * push;
+              this.vy -= (dy / dist) * push * 0.4;
+            }
+          }
+
+          // 3. Pendulum tilt matching drift velocity
+          const targetTilt = this.vx * 0.55 + Math.sin(t * 0.75 + this.phase) * 0.05;
+          this.tiltVelocity += (targetTilt - this.tilt) * 0.08;
+          this.tiltVelocity *= 0.90;
+          this.tilt += this.tiltVelocity;
+
+          this.x += this.vx * dt * 60;
+          this.y += this.vy * dt * 60;
+
+          // 4. Emit occasional bioluminescent spore
+          this.moteTimer += dt;
+          if (this.moteTimer > 0.4) {
+            this.moteTimer = 0;
+            if (Math.random() < 0.45) {
+              spawnMote(this.x, this.y + 10 * this.scale, this.vx, this.vy);
+            }
+          }
+
+          // 5. Screen boundary wrap (continuous serene descent from canopy)
+          if (this.y > height + 90) {
+            this.y = -100;
+            this.x = Math.random() * width;
+          } else if (this.y < -120) {
+            this.y = height + 40;
+          }
+          if (this.x < -90) {
+            this.x = width + 70;
+          } else if (this.x > width + 90) {
+            this.x = -70;
+          }
+        }
+
+        draw(ctx, t) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.tilt);
+
+          const breathe = (Math.sin(this.breathePhase) + 1) * 0.5; // 0.0 to 1.0
+          const flare = 1.0 + breathe * 0.10; // Soft respiratory expansion
+          const wingFlutter = Math.sin(t * 2.2 + this.phase) * 0.12;
+
+          // Lag displacement based on horizontal velocity
+          const lagX = -this.vx * (18 * this.scale);
+          const lagY = -this.vy * (8 * this.scale);
+
+          // ── 1. Calculate All 3D Tentacles ──
+          const tentacles = [];
+          for (let i = 0; i < this.tentacleCount; i++) {
+            const theta = (i / this.tentacleCount) * TAU + this.rotY;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta); // Depth into screen: -1 (back) to +1 (front)
+
+            // Origin at vertical stalk spout
+            const p0x = 0;
+            const p0y = this.spoutY;
+
+            // Upward eruption / high arch crest
+            const crestX = cosT * (this.fountainRadius * 0.52 * flare);
+            const crestY = this.fountainCrestY * flare;
+
+            // Outward shoulder curve
+            const shoulderX = cosT * (this.fountainRadius * 0.98 * flare) + lagX * 0.4;
+            const shoulderY = -15 * this.scale;
+
+            // Cascading bottom tip
+            const tipX = cosT * (this.fountainRadius * 0.92 * flare) + lagX;
+            const tipY = this.fountainTipY * flare + lagY;
+
+            // Direction vector at tip for feather orientation
+            const tipAngle = Math.atan2(tipY - shoulderY, tipX - shoulderX) - Math.PI / 2;
+
+            tentacles.push({
+              p0x, p0y, crestX, crestY, shoulderX, shoulderY, tipX, tipY,
+              tipAngle, depth: (sinT + 1) * 0.5, sinT
+            });
+          }
+
+          // ── 2. Calculate Inner Winged Petals ──
+          const wings = [];
+          for (let w = 0; w < this.wingCount; w++) {
+            const wTheta = (w / this.wingCount) * TAU + this.rotY;
+            const wCos = Math.cos(wTheta);
+            const wSin = Math.sin(wTheta);
+            const wDepth = (wSin + 1) * 0.5;
+
+            const wTipX = wCos * (this.wingSpread * (1.0 + wingFlutter)) + lagX * 0.4;
+            const wTipY = this.wingBottomY * (1.0 + wingFlutter * 0.5);
+            const wCtrlX = wCos * (this.wingSpread * 1.15);
+            const wCtrlY = 4 * this.scale;
+
+            wings.push({ wTipX, wTipY, wCtrlX, wCtrlY, depth: wDepth, sinT: wSin });
+          }
+
+          // ── 3. Draw Rear Tentacles & Rear Wings (sinT < 0) ──
+          for (const tent of tentacles) {
+            if (tent.sinT < 0) this._drawTentacle(ctx, tent);
+          }
+          for (const wing of wings) {
+            if (wing.sinT < 0) this._drawWing(ctx, wing);
+          }
+
+          // ── 4. Draw Central Creature Body (Nucleus, Stalk, Tassels) ──
+          this._drawBody(ctx, breathe, lagX, lagY, t);
+
+          // ── 5. Draw Front Wings & Front Tentacles (sinT >= 0) ──
+          for (const wing of wings) {
+            if (wing.sinT >= 0) this._drawWing(ctx, wing);
+          }
+          for (const tent of tentacles) {
+            if (tent.sinT >= 0) this._drawTentacle(ctx, tent);
+          }
+
+          ctx.restore();
+        }
+
+        _drawTentacle(ctx, tent) {
+          const alpha = 0.32 + tent.depth * 0.65; // Front filaments are brilliantly luminous
+
+          // Smooth weeping fountain tentacle spline
+          ctx.strokeStyle = `rgba(235, 252, 255, ${alpha.toFixed(3)})`;
+          ctx.lineWidth = (0.75 + tent.depth * 0.55) * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(tent.p0x, tent.p0y);
+          ctx.bezierCurveTo(tent.crestX * 0.3, tent.crestY, tent.crestX, tent.crestY, tent.shoulderX, tent.shoulderY);
+          ctx.bezierCurveTo(tent.shoulderX, tent.shoulderY + 15 * this.scale, tent.tipX * 1.05, tent.tipY - 12 * this.scale, tent.tipX, tent.tipY);
+          ctx.stroke();
+
+          // Feather lancelet tip quill
+          const featherLen = (11 + tent.depth * 5) * this.scale;
+          const featherWid = (2.4 + tent.depth * 1.2) * this.scale;
+          drawFeatherTip(ctx, tent.tipX, tent.tipY, tent.tipAngle, featherLen, featherWid, alpha, this.scale);
+        }
+
+        _drawWing(ctx, wing) {
+          const alpha = 0.25 + wing.depth * 0.55;
+
+          // Wing outline
+          ctx.strokeStyle = `rgba(215, 248, 255, ${alpha.toFixed(3)})`;
+          ctx.lineWidth = (0.8 + wing.depth * 0.4) * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(0, -6 * this.scale);
+          ctx.quadraticCurveTo(wing.wCtrlX, wing.wCtrlY, wing.wTipX, wing.wTipY);
+          ctx.quadraticCurveTo(wing.wTipX * 0.4, wing.wTipY * 0.85, 0, 8 * this.scale);
+          ctx.stroke();
+
+          // Translucent wing vane fill
+          ctx.fillStyle = `rgba(186, 242, 255, ${(alpha * 0.22).toFixed(3)})`;
+          ctx.fill();
+
+          // Transverse feather ribbing (herringbone vanes)
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.55).toFixed(3)})`;
+          ctx.lineWidth = 0.5 * this.scale;
+          ctx.beginPath();
+          for (let r = 1; r <= 3; r++) {
+            const frac = r / 4;
+            const rx1 = wing.wTipX * frac;
+            const ry1 = -6 * this.scale + (wing.wTipY - (-6 * this.scale)) * frac;
+            const rx2 = wing.wTipX * frac * 0.5;
+            const ry2 = ry1 + 3.5 * this.scale;
+            ctx.moveTo(rx1, ry1);
+            ctx.lineTo(rx2, ry2);
+          }
+          ctx.stroke();
+        }
+
+        _drawBody(ctx, breathe, lagX, lagY, t) {
+          // A. Central Vertical Stalk (From body up to fountain spout)
+          ctx.strokeStyle = 'rgba(235, 252, 255, 0.85)';
+          ctx.lineWidth = 1.4 * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(0, this.spoutY);
+          ctx.stroke();
+
+          // Delicate spout ring at apex where tentacles erupt
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.beginPath();
+          ctx.ellipse(0, this.spoutY, 2.5 * this.scale, 1.2 * this.scale, 0, 0, TAU);
+          ctx.fill();
+
+          // B. Bioluminescent Core Aura
+          const auraRadius = (18 + breathe * 4) * this.scale;
+          const aura = ctx.createRadialGradient(0, 4 * this.scale, 0, 0, 4 * this.scale, auraRadius);
+          aura.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+          aura.addColorStop(0.25, 'rgba(186, 245, 255, 0.80)');
+          aura.addColorStop(0.55, 'rgba(167, 139, 250, 0.35)'); // Ethereal Pandora violet hue
+          aura.addColorStop(1.0, 'rgba(103, 232, 249, 0.0)');
+
+          ctx.fillStyle = aura;
+          ctx.beginPath();
+          ctx.arc(0, 4 * this.scale, auraRadius, 0, TAU);
+          ctx.fill();
+
+          // C. Translucent Pearlescent Seed Pod (Body)
+          const podWidth = 4.2 * this.scale;
+          const podHeight = 12 * this.scale;
+
+          const podGrad = ctx.createLinearGradient(0, -2 * this.scale, 0, podHeight);
+          podGrad.addColorStop(0.0, '#ffffff');
+          podGrad.addColorStop(0.4, '#cffafe');
+          podGrad.addColorStop(0.7, '#e0e7ff'); // Soft iridescent sheen
+          podGrad.addColorStop(1.0, '#7dd3fc');
+
+          ctx.fillStyle = podGrad;
+          ctx.beginPath();
+          ctx.moveTo(0, -3 * this.scale);
+          ctx.bezierCurveTo(podWidth, 0, podWidth, podHeight * 0.7, 0, podHeight);
+          ctx.bezierCurveTo(-podWidth, podHeight * 0.7, -podWidth, 0, 0, -3 * this.scale);
+          ctx.fill();
+
+          // D. Trailing Tail Feather Tassels (Beneath Seed Pod)
+          for (let i = 0; i < this.tassels.length; i++) {
+            const tas = this.tassels[i];
+            const tasSway = Math.sin(t * 1.6 + tas.offsetPhase) * (3.5 * this.scale) + lagX * 0.5;
+            const tasTipX = (i - (this.tasselCount - 1) / 2) * (2.2 * this.scale) + tasSway;
+            const tasTipY = podHeight + tas.length;
+
+            ctx.strokeStyle = 'rgba(215, 245, 255, 0.55)';
+            ctx.lineWidth = 0.75 * this.scale;
+            ctx.beginPath();
+            ctx.moveTo((i - (this.tasselCount - 1) / 2) * (1.5 * this.scale), podHeight);
+            ctx.quadraticCurveTo(tasSway * 0.5, podHeight + tas.length * 0.5, tasTipX, tasTipY);
+            ctx.stroke();
+
+            // Tiny feather tip on tassel
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(tasTipX, tasTipY, 0.9 * this.scale, 0, TAU);
+            ctx.fill();
+          }
+        }
+      }
+
+      // Initialize Woodsrpites
+      const woodsprites = [];
+      for (let i = 0; i < WOODSPRITE_COUNT; i++) {
+        woodsprites.push(new Woodsprite(i));
+      }
+
+      // ── Main 60 FPS Render Loop ──
+      let totalElapsed = 0;
+
+      function render(now) {
+        if (width !== window.innerWidth || height !== window.innerHeight) {
+          resize();
+        }
+
+        const dt = Math.min(0.033, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        totalElapsed += dt;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // 1. Ambient Stardust Motes
+        for (let i = motes.length - 1; i >= 0; i--) {
+          const m = motes[i];
+          m.x += m.vx * dt * 60;
+          m.y += m.vy * dt * 60;
+          m.alpha -= m.decay;
+
+          if (m.alpha <= 0) {
+            motes.splice(i, 1);
+            continue;
+          }
+
+          ctx.fillStyle = `rgba(186, 245, 255, ${(m.alpha * 0.7).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, m.radius * m.alpha, 0, TAU);
+          ctx.fill();
+        }
+
+        // 2. Render Woodsprites
+        for (let i = 0; i < woodsprites.length; i++) {
+          woodsprites[i].update(dt, totalElapsed);
+          woodsprites[i].draw(ctx, totalElapsed);
+        }
+
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    })();
+  </script>
+</body>
+</html>

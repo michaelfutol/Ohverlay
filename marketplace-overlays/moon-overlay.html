@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ohverlay — Local Moon</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font: 12px/1.5 system-ui, -apple-system, sans-serif;
+      color: #e2e8f0;
+      background: radial-gradient(ellipse at 80% 20%, #0f1d30 0%, #091220 45%, #030710 100%);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+    .transparent, .transparent body {
+      background: transparent !important;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      pointer-events: none;
+    }
+    /* HUD Controls Panel */
+    #panel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(760px, calc(100% - 32px));
+      max-height: 44vh;
+      overflow: auto;
+      background: rgba(10, 18, 32, 0.94);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 14px;
+      padding: 14px 18px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px);
+      z-index: 10;
+      color: #f1f5f9;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .row + .row {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    header.chrome {
+      position: fixed;
+      top: 18px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 5;
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: 0.03em;
+      color: #f8fafc;
+    }
+    .tag {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+    button {
+      font: inherit;
+      color: #f8fafc;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { background: #334155; }
+    button[aria-pressed="true"] {
+      background: #38bdf8;
+      color: #0f172a;
+      border-color: #0284c7;
+      font-weight: 600;
+    }
+    .slider {
+      flex: 1 1 110px;
+      display: grid;
+      gap: 2px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .slider span { display: flex; justify-content: space-between; }
+    .slider input { width: 100%; accent-color: #38bdf8; }
+    .check {
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .check input { accent-color: #38bdf8; }
+    #restore {
+      position: fixed;
+      right: 18px;
+      top: 18px;
+      z-index: 15;
+      font: 11px system-ui, sans-serif;
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.2s;
+      opacity: 0.5;
+    }
+    #restore:hover { opacity: 1; background: rgba(30, 41, 59, 0.95); }
+    .hidden-ui .chrome, .hidden-ui #panel { display: none !important; }
+    .meta { font-size: 11px; color: #94a3b8; margin: 6px 0 0; }
+    #status { color: #38bdf8; font-weight: 500; }
+  </style>
+</head>
+<body>
+<header class="chrome">
+  <h1>ohverlay <span class="tag">/ local moon</span></h1>
+  <span class="tag" id="phase-badge">Astronomical Ephemeris</span>
+</header>
+<canvas id="world" aria-label="The Moon at its current local phase and altitude"></canvas>
+<section id="panel" class="chrome" aria-label="Moon controls">
+  <div class="row">
+    <button id="preview-btn" type="button" aria-pressed="false">👁️ Always Visible</button>
+    <button id="dock-btn" type="button" aria-pressed="true">📌 Tray Docked</button>
+    <button id="clouds-btn" type="button" aria-pressed="false">☁️ Passing Clouds</button>
+    <button id="manila-btn" type="button">📍 Manila, PH</button>
+    <button id="hide-btn" type="button">Hide Interface</button>
+  </div>
+  <div class="row">
+    <label class="slider"><span>Scale <output id="scale-val">100%</output></span><input id="scale" type="range" min="50" max="200" value="100" step="5"></label>
+    <label class="slider"><span>Visibility <output id="opacity-val">100%</output></span><input id="opacity" type="range" min="10" max="100" value="100" step="5"></label>
+    <label class="slider"><span>Time Speed <output id="speed-val">1×</output></span><input id="speed" type="range" min="1" max="1200" value="1" step="1"></label>
+  </div>
+  <div class="row">
+    <label class="check"><input id="transparent-chk" type="checkbox">Transparent background</label>
+    <span class="meta">Lat: <input id="lat-in" type="number" step="0.01" value="14.60" style="width:70px;background:#1e293b;border:1px solid #475569;color:#fff;border-radius:4px;padding:2px 4px;"></span>
+    <span class="meta">Lon: <input id="lon-in" type="number" step="0.01" value="120.98" style="width:70px;background:#1e293b;border:1px solid #475569;color:#fff;border-radius:4px;padding:2px 4px;"></span>
+  </div>
+  <p class="meta"><span id="status">Calculating lunar ephemeris…</span></p>
+</section>
+<button id="restore" hidden>Restore interface · Esc</button>
+
+<script>
+(() => {
+  'use strict';
+  // Low-precision lunar ephemeris adapted from SunCalc's published astronomy equations.
+  // The rendering, local visibility, and interactive desktop bridge are original to Ohverlay.
+  const canvas = document.getElementById('world');
+  const ctx = canvas.getContext('2d', {alpha: true, desynchronized: true});
+  const $ = id => document.getElementById(id);
+  const query = new URLSearchParams(location.search);
+
+  const PI = Math.PI, TAU = PI * 2, rad = PI / 180, dayMs = 86400000, J1970 = 2440588, J2000 = 2451545, e = rad * 23.4397;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mix = (a, b, t) => a + (b - a) * t;
+  const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+  function readNumber(name, min, max) {
+    if (!query.has(name)) return null;
+    const v = Number(query.get(name));
+    return Number.isFinite(v) ? clamp(v, min, max) : null;
+  }
+
+  // Graceful default coordinates (Manila, Philippines) if none are supplied
+  let latitude = readNumber('lat', -90, 90);
+  let longitude = readNumber('lon', -180, 180);
+  const hasExplicitLocation = (latitude !== null && longitude !== null);
+  if (!hasExplicitLocation) {
+    latitude = 14.5995;
+    longitude = 120.9842;
+  }
+
+  // Standalone browser preview defaults to always visible so user sees the Moon immediately
+  let preview = query.has('preview') ? (query.get('preview') === '1' || query.get('preview') === 'true') : !query.has('controls');
+  let cloudPreview = query.has('cloud') ? (query.get('cloud') === '1' || query.get('cloud') === 'true') : true;
+
+  let scale = readNumber('scale', 0.5, 2) || 1;
+  let opacity = readNumber('opacity', 0.1, 1) || 1;
+  const requestedGround = readNumber('ground', 0, 100000);
+  let motionSpeed = readNumber('speed', 1, 3600) || 1;
+
+  const clockOrigin = Date.now();
+  let previewOffset = null;
+  let width = 1, height = 1, dpr = 1, visible = false;
+  let baseX = 0, baseY = 0, diameter = 180, thinCrescent = false;
+  let dockedToTray = query.has('dock') ? (query.get('dock') === '1' || query.get('dock') === 'true') : true;
+  let cloudVisible = false;
+
+  const moonTile = document.createElement('canvas');
+  moonTile.width = moonTile.height = 256;
+  const tileCtx = moonTile.getContext('2d', {alpha: true});
+
+  // Background stars for standalone viewing
+  const starList = [];
+  function initStars() {
+    starList.length = 0;
+    const count = 120;
+    for (let i = 0; i < count; i++) {
+      starList.push({
+        x: Math.random(),
+        y: Math.random(),
+        radius: Math.random() * 1.2 + 0.4,
+        alpha: Math.random() * 0.7 + 0.3,
+        twinkle: Math.random() * 10
+      });
+    }
+  }
+
+  const toJulian = date => date.valueOf() / dayMs - 0.5 + J1970;
+  const toDays = date => toJulian(date) - J2000;
+  const rightAscension = (l, b) => Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l));
+  const declination = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  const azimuth = (H, phi, dec) => Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi));
+  const altitude = (H, phi, dec) => Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+  const siderealTime = (d, lw) => rad * (280.16 + 360.9856235 * d) - lw;
+
+  function astroRefraction(h) {
+    if (h < 0) h = 0;
+    return 0.0002967 / Math.tan(h + 0.00312536 / (h + 0.08901179));
+  }
+
+  const solarMeanAnomaly = d => rad * (357.5291 + 0.98560028 * d);
+  function eclipticLongitude(M) {
+    const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    return M + C + rad * 102.9372 + PI;
+  }
+  function sunCoords(d) {
+    const M = solarMeanAnomaly(d), L = eclipticLongitude(M);
+    return {dec: declination(L, 0), ra: rightAscension(L, 0)};
+  }
+  function moonCoords(d) {
+    const L = rad * (218.316 + 13.176396 * d), M = rad * (134.963 + 13.064993 * d), F = rad * (93.272 + 13.229350 * d);
+    const l = L + rad * 6.289 * Math.sin(M), b = rad * 5.128 * Math.sin(F), dist = 385001 - 20905 * Math.cos(M);
+    return {ra: rightAscension(l, b), dec: declination(l, b), dist};
+  }
+  function bodyPosition(date, lat, lng, coords) {
+    const lw = -lng * rad, phi = lat * rad, d = toDays(date), c = coords(d), H = siderealTime(d, lw) - c.ra;
+    let h = altitude(H, phi, c.dec);
+    h += astroRefraction(h);
+    return {
+      azimuth: azimuth(H, phi, c.dec),
+      altitude: h,
+      parallacticAngle: Math.atan2(Math.sin(H), Math.tan(phi) * Math.cos(c.dec) - Math.sin(c.dec) * Math.cos(H)),
+      distance: c.dist
+    };
+  }
+  function moonIllumination(date) {
+    const d = toDays(date), s = sunCoords(d), m = moonCoords(d), sdist = 149598000;
+    const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra));
+    const inc = Math.atan2(sdist * Math.sin(phi), m.dist - sdist * Math.cos(phi));
+    const angle = Math.atan2(Math.cos(s.dec) * Math.sin(s.ra - m.ra), Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra));
+    return {fraction: (1 + Math.cos(inc)) / 2, phase: 0.5 + 0.5 * inc * (angle < 0 ? -1 : 1) / PI, angle, inc};
+  }
+  function sunPosition(date) {
+    return bodyPosition(date, latitude, longitude, sunCoords);
+  }
+  function hash(x, y) {
+    return Math.sin(x * 127.1 + y * 311.7) * 43758.5453 % 1;
+  }
+
+  const maria = [[-0.34, -0.14, 0.25, 0.16, 0.38], [0.18, -0.28, 0.20, 0.25, 0.32], [0.32, 0.10, 0.18, 0.14, 0.26], [-0.04, 0.22, 0.22, 0.18, 0.18], [-0.48, 0.22, 0.11, 0.16, 0.20]];
+  const craters = [[-0.52, -0.40, 0.10], [-0.19, -0.52, 0.055], [0.49, -0.34, 0.075], [0.58, 0.18, 0.065], [0.25, 0.48, 0.09], [-0.37, 0.45, 0.07], [0.04, -0.04, 0.045], [-0.14, 0.30, 0.035]];
+
+  function albedo(x, y, rotation) {
+    const cs = Math.cos(rotation), sn = Math.sin(rotation), rx = x * cs - y * sn, ry = x * sn + y * cs;
+    let value = 0.78 + (hash(Math.floor((rx + 1) * 76), Math.floor((ry + 1) * 76)) - 0.5) * 0.075;
+    for (const [mx, my, sx, sy, dark] of maria) {
+      const q = ((rx - mx) / sx) ** 2 + ((ry - my) / sy) ** 2;
+      value -= dark * Math.exp(-q * 2.2);
+    }
+    for (const [cx, cy, r] of craters) {
+      const q = Math.hypot(rx - cx, ry - cy) / r;
+      value -= q < 0.72 ? 0.13 * (1 - q / 0.72) : 0;
+      value += Math.exp(-(((q - 1) / 0.13) ** 2)) * 0.11;
+    }
+    return clamp(value, 0.24, 0.94);
+  }
+
+  function getPhaseName(phase, fraction) {
+    if (fraction < 0.015) return "New Moon 🌑";
+    if (fraction > 0.985) return "Full Moon 🌕";
+    if (phase < 0.22) return `Waxing Crescent 🌒 (${(fraction * 100).toFixed(0)}%)`;
+    if (phase < 0.28) return `First Quarter 🌓 (${(fraction * 100).toFixed(0)}%)`;
+    if (phase < 0.48) return `Waxing Gibbous 🌔 (${(fraction * 100).toFixed(0)}%)`;
+    if (phase < 0.52) return `Full Moon 🌕 (${(fraction * 100).toFixed(0)}%)`;
+    if (phase < 0.72) return `Waning Gibbous 🌖 (${(fraction * 100).toFixed(0)}%)`;
+    if (phase < 0.78) return `Last Quarter 🌗 (${(fraction * 100).toFixed(0)}%)`;
+    return `Waning Crescent 🌘 (${(fraction * 100).toFixed(0)}%)`;
+  }
+
+  function nextPreviewDate(start) {
+    for (let minutes = 0; minutes <= 35 * 24 * 60; minutes += 30) {
+      const candidate = new Date(start.valueOf() + minutes * 60000);
+      const p = bodyPosition(candidate, latitude, longitude, moonCoords);
+      const i = moonIllumination(candidate);
+      if (p.altitude > 10 * rad && i.fraction >= 0.08) return candidate;
+    }
+    return start;
+  }
+
+  function skyDate() {
+    const accelerated = clockOrigin + (Date.now() - clockOrigin) * motionSpeed;
+    const base = new Date(accelerated);
+    if (!preview) return base;
+    if (previewOffset === null) previewOffset = nextPreviewDate(base).valueOf() - base.valueOf();
+    return new Date(accelerated + previewOffset);
+  }
+
+  function placeMoon(pos) {
+    // 2-inch right strip: 24px margin from right edge of the screen
+    const rightMargin = 24;
+    baseX = width - rightMargin - diameter * 0.5;
+
+    // Taskbar tray horizon
+    const taskbarHorizon = clamp(requestedGround === null ? (height - 48) : requestedGround, 0, height);
+
+    // Anchored right above the system tray / taskbar icons in the 2-inch right strip
+    // Disc is 100% visible, never clipped!
+    const trayY = taskbarHorizon - diameter * 0.5 - 16;
+    const zenithY = diameter * 0.5 + 40;
+
+    if (dockedToTray) {
+      baseY = Math.max(zenithY, trayY);
+    } else {
+      const skyAltitude = clamp(pos.altitude / (PI * 0.5), 0, 1);
+      baseY = mix(trayY, zenithY, skyAltitude);
+    }
+    canvas.dataset.ground = taskbarHorizon.toFixed(1);
+    canvas.dataset.docked = String(dockedToTray);
+  }
+
+  function rebuildMoon(inputDate) {
+    if (latitude === null || longitude === null) {
+      visible = false;
+      canvas.dataset.visible = 'false';
+      canvas.dataset.reason = 'location-required';
+      draw();
+      return;
+    }
+    const date = inputDate || skyDate();
+    const pos = bodyPosition(date, latitude, longitude, moonCoords);
+    const illum = moonIllumination(date);
+    const sun = sunPosition(date);
+
+    visible = (pos.altitude > -0.3 * rad && illum.fraction >= 0.01) || preview;
+    thinCrescent = illum.fraction < 0.12;
+
+    canvas.dataset.visible = String(visible);
+    canvas.dataset.reason = visible ? (preview ? 'preview' : '') : 'below-horizon-or-new-moon';
+    canvas.dataset.preview = String(preview);
+    canvas.dataset.previewDate = preview ? date.toISOString() : '';
+    canvas.dataset.phase = illum.phase.toFixed(5);
+    canvas.dataset.illuminated = illum.fraction.toFixed(5);
+    canvas.dataset.altitude = (pos.altitude / rad).toFixed(3);
+    canvas.dataset.azimuth = (pos.azimuth / rad).toFixed(3);
+
+    // Update HUD display elements
+    const phaseName = getPhaseName(illum.phase, illum.fraction);
+    if ($('phase-badge')) $('phase-badge').textContent = phaseName;
+    if ($('status')) {
+      $('status').textContent = `${phaseName} · Alt: ${(pos.altitude / rad).toFixed(1)}° · Az: ${(pos.azimuth / rad).toFixed(1)}° · Dist: ${Math.round(pos.distance).toLocaleString()} km`;
+    }
+    if ($('preview-btn')) {
+      $('preview-btn').setAttribute('aria-pressed', String(preview));
+      $('preview-btn').textContent = preview ? '👁️ Always Visible (ON)' : '👁️ Astronomical Sky';
+    }
+    if ($('clouds-btn')) {
+      $('clouds-btn').setAttribute('aria-pressed', String(cloudPreview));
+    }
+    if ($('dock-btn')) {
+      $('dock-btn').setAttribute('aria-pressed', String(dockedToTray));
+      $('dock-btn').textContent = dockedToTray ? '📌 Tray Docked (ON)' : '🌌 Sky Altitude';
+    }
+
+    if (!visible) {
+      draw();
+      return;
+    }
+
+    diameter = clamp(180 * scale * (384400 / pos.distance), 160 * scale, 200 * scale);
+    placeMoon(pos);
+
+    const daylight = smooth((sun.altitude + 6 * rad) / (16 * rad));
+    const displayAlpha = mix(0.98, 0.62, daylight) * opacity;
+    const chi = illum.angle - pos.parallacticAngle, si = Math.sin(illum.inc);
+    const light = {x: Math.sin(chi) * si, y: -Math.cos(chi) * si, z: Math.cos(illum.inc)};
+
+    const image = tileCtx.createImageData(256, 256), data = image.data, rotation = -pos.parallacticAngle;
+    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
+      const x = (px + 0.5) / 128 - 1, y = (py + 0.5) / 128 - 1, r2 = x * x + y * y, index = (py * 256 + px) * 4;
+      if (r2 >= 1) continue;
+      const z = Math.sqrt(1 - r2), incidence = x * light.x + y * light.y + z * light.z;
+      const edge = smooth((1 - Math.sqrt(r2)) / 0.035);
+      const sunlight = smooth(incidence / 0.055);
+      const earthshine = (1 - daylight) * (0.025 + 0.065 * (1 - illum.fraction));
+      const relief = 1.03 + 0.27 * Math.max(0, incidence);
+      const litTone = albedo(x, y, rotation) * (earthshine + sunlight * relief);
+      const coverage = thinCrescent ? sunlight : (0.075 + 0.925 * sunlight);
+      const shadowTone = 0.43 + earthshine * 1.4;
+      const tone = mix(shadowTone, litTone, smooth(sunlight / 0.22));
+      const warm = 1 - smooth((pos.altitude - 2 * rad) / (13 * rad));
+      data[index] = clamp(255 * tone * (1 + 0.20 * warm), 0, 255);
+      data[index + 1] = clamp(251 * tone * (1 + 0.09 * warm), 0, 255);
+      data[index + 2] = clamp(235 * tone * (1 - 0.06 * warm), 0, 255);
+      data[index + 3] = clamp(255 * edge * displayAlpha * coverage, 0, 255);
+    }
+    tileCtx.putImageData(image, 0, 0);
+    draw();
+  }
+
+  function drawCloud(now) {
+    const cycleMs = 180000;
+    const phase = ((Date.now() + longitude * 9973) % cycleMs + cycleMs) % cycleMs / cycleMs;
+    cloudVisible = visible && (cloudPreview || (phase > 0.10 && phase < 0.40));
+    canvas.dataset.clouds = cloudVisible ? 'passing' : 'clear';
+    if (!cloudVisible) return;
+
+    const p = cloudPreview ? (0.5 + Math.sin(now * 0.00012) * 0.22) : (phase - 0.10) / 0.30;
+    const cloudWidth = diameter * 1.55, cloudHeight = diameter * 0.42;
+    const x = baseX + (0.5 - p) * (diameter * 1.8);
+    const y = baseY + diameter * 0.08 + Math.sin(now * 0.00028 + longitude) * diameter * 0.045;
+
+    ctx.save();
+    ctx.globalAlpha = 0.22 * opacity * Math.sin(PI * p);
+    ctx.filter = `blur(${Math.max(5, diameter * 0.055)}px)`;
+    const shade = ctx.createLinearGradient(x, y - cloudHeight * 0.6, x, y + cloudHeight * 0.6);
+    shade.addColorStop(0, 'rgba(248,250,252,.88)');
+    shade.addColorStop(0.58, 'rgba(226,232,240,.68)');
+    shade.addColorStop(1, 'rgba(148,163,184,.28)');
+    ctx.fillStyle = shade;
+    const puffs = [[-0.43, 0.10, 0.36, 0.34], [-0.20, -0.08, 0.42, 0.48], [0.05, -0.18, 0.48, 0.58], [0.31, -0.05, 0.39, 0.46], [0.48, 0.12, 0.31, 0.31], [0.02, 0.16, 0.72, 0.30]];
+    for (const [ox, oy, rx, ry] of puffs) {
+      ctx.beginPath();
+      ctx.ellipse(x + ox * cloudWidth, y + oy * cloudHeight, rx * cloudWidth, ry * cloudHeight, 0, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function draw(now = performance.now()) {
+    ctx.clearRect(0, 0, width, height);
+    if (!visible) {
+      cloudVisible = false;
+      canvas.dataset.clouds = 'clear';
+    }
+
+    // Draw background stars if standalone
+    if (!document.documentElement.classList.contains('transparent') && starList.length > 0) {
+      ctx.save();
+      for (const s of starList) {
+        const a = s.alpha * (0.8 + 0.2 * Math.sin(now * 0.002 + s.twinkle));
+        ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+        ctx.beginPath();
+        ctx.arc(s.x * width, s.y * height, s.radius, 0, TAU);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    if (visible) {
+      placeMoon(bodyPosition(skyDate(), latitude, longitude, moonCoords));
+      const x = baseX, y = baseY;
+      ctx.save();
+
+      // Atmospheric silver/blue halo
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.36 * opacity;
+      const halo = ctx.createRadialGradient(x, y, diameter * 0.30, x, y, diameter * 0.90);
+      halo.addColorStop(0, 'rgba(236,243,255,.38)');
+      halo.addColorStop(0.48, 'rgba(220,232,252,.16)');
+      halo.addColorStop(1, 'rgba(205,222,250,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(x, y, diameter * 0.92, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+
+      // Moon photographic texture
+      ctx.drawImage(moonTile, x - diameter * 0.5, y - diameter * 0.5, diameter, diameter);
+
+      if (thinCrescent) {
+        ctx.save();
+        ctx.globalAlpha = 0.24 * opacity;
+        ctx.strokeStyle = 'rgba(224,232,244,.82)';
+        ctx.lineWidth = Math.max(0.7, scale);
+        ctx.beginPath();
+        ctx.arc(x, y, diameter * 0.495, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      drawCloud(now);
+      ctx.restore();
+    }
+  }
+
+  function resize() {
+    width = Math.max(1, innerWidth);
+    height = Math.max(1, innerHeight);
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    initStars();
+    rebuildMoon(skyDate());
+  }
+
+  addEventListener('resize', resize, {passive: true});
+
+  // UI Panel interaction handlers
+  function hide(hidden) {
+    document.documentElement.classList.toggle('hidden-ui', hidden);
+    if ($('restore')) $('restore').hidden = !hidden;
+    draw();
+  }
+
+  if ($('hide-btn')) $('hide-btn').addEventListener('click', () => hide(true));
+  if ($('restore')) $('restore').addEventListener('click', () => hide(false));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') hide(!document.documentElement.classList.contains('hidden-ui'));
+  });
+
+  if ($('preview-btn')) {
+    $('preview-btn').addEventListener('click', () => {
+      preview = !preview;
+      previewOffset = null;
+      rebuildMoon(skyDate());
+    });
+  }
+
+  if ($('clouds-btn')) {
+    $('clouds-btn').addEventListener('click', () => {
+      cloudPreview = !cloudPreview;
+      rebuildMoon(skyDate());
+    });
+  }
+
+  if ($('manila-btn')) {
+    $('manila-btn').addEventListener('click', () => {
+      latitude = 14.5995;
+      longitude = 120.9842;
+      if ($('lat-in')) $('lat-in').value = '14.60';
+      if ($('lon-in')) $('lon-in').value = '120.98';
+      previewOffset = null;
+      rebuildMoon(skyDate());
+    });
+  }
+
+  if ($('scale')) {
+    $('scale').addEventListener('input', e => {
+      scale = Number(e.target.value) / 100;
+      if ($('scale-val')) $('scale-val').textContent = `${Math.round(scale * 100)}%`;
+      rebuildMoon(skyDate());
+    });
+  }
+
+  if ($('opacity')) {
+    $('opacity').addEventListener('input', e => {
+      opacity = Number(e.target.value) / 100;
+      if ($('opacity-val')) $('opacity-val').textContent = `${Math.round(opacity * 100)}%`;
+      rebuildMoon(skyDate());
+    });
+  }
+
+  if ($('speed')) {
+    $('speed').addEventListener('input', e => {
+      motionSpeed = Number(e.target.value);
+      if ($('speed-val')) $('speed-val').textContent = `${motionSpeed}×`;
+    });
+  }
+
+  if ($('transparent-chk')) {
+    $('transparent-chk').addEventListener('change', e => {
+      document.documentElement.classList.toggle('transparent', e.target.checked);
+      draw();
+    });
+  }
+
+  if ($('lat-in')) {
+    $('lat-in').addEventListener('change', e => {
+      const v = Number(e.target.value);
+      if (Number.isFinite(v)) {
+        latitude = clamp(v, -90, 90);
+        previewOffset = null;
+        rebuildMoon(skyDate());
+      }
+    });
+  }
+
+  if ($('lon-in')) {
+    $('lon-in').addEventListener('change', e => {
+      const v = Number(e.target.value);
+      if (Number.isFinite(v)) {
+        longitude = clamp(v, -180, 180);
+        previewOffset = null;
+        rebuildMoon(skyDate());
+      }
+    });
+  }
+
+  // Live control hooks for Ohverlay desktop integration
+  window.setOpacity = v => {
+    opacity = clamp(Number(v) || 0, 0, 1);
+    if ($('opacity')) $('opacity').value = String(Math.round(opacity * 100));
+    if ($('opacity-val')) $('opacity-val').textContent = `${Math.round(opacity * 100)}%`;
+    rebuildMoon(skyDate());
+  };
+
+  window.setScale = v => {
+    scale = clamp(Number(v) || 1, 0.5, 2);
+    if ($('scale')) $('scale').value = String(Math.round(scale * 100));
+    if ($('scale-val')) $('scale-val').textContent = `${Math.round(scale * 100)}%`;
+    rebuildMoon(skyDate());
+  };
+
+  window.setTransparency = pct => {
+    const val = Number(pct);
+    if (Number.isFinite(val)) {
+      window.setOpacity(Math.max(0, Math.min(1, 1.0 - (val / 100.0))));
+    }
+  };
+
+  window.setLocation = (lat, lon) => {
+    latitude = clamp(Number(lat), -90, 90);
+    longitude = clamp(Number(lon), -180, 180);
+    if ($('lat-in')) $('lat-in').value = String(latitude.toFixed(2));
+    if ($('lon-in')) $('lon-in').value = String(longitude.toFixed(2));
+    previewOffset = null;
+    rebuildMoon(skyDate());
+  };
+
+  window.togglePreview = force => {
+    preview = force !== undefined ? !!force : !preview;
+    previewOffset = null;
+    rebuildMoon(skyDate());
+  };
+
+  window.toggleDock = force => {
+    dockedToTray = force !== undefined ? !!force : !dockedToTray;
+    rebuildMoon(skyDate());
+  };
+
+  window.toggleClouds = force => {
+    cloudPreview = force !== undefined ? !!force : !cloudPreview;
+    rebuildMoon(skyDate());
+  };
+
+  window.toggleControls = show => {
+    const isHidden = document.documentElement.classList.contains('hidden-ui');
+    hide(show !== undefined ? !show : !isHidden);
+  };
+
+  window._moon = {
+    recalculate: rebuildMoon,
+    snapshot: () => ({
+      visible,
+      latitude,
+      longitude,
+      diameter,
+      baseX,
+      baseY,
+      ground: canvas.dataset.ground,
+      phase: canvas.dataset.phase,
+      illuminated: canvas.dataset.illuminated,
+      altitude: canvas.dataset.altitude,
+      thinCrescent,
+      reason: canvas.dataset.reason,
+      preview: canvas.dataset.preview,
+      previewDate: canvas.dataset.previewDate,
+      clouds: canvas.dataset.clouds
+    })
+  };
+
+  if (query.get('transparent') === '1' || query.get('transparent') === 'true') {
+    document.documentElement.classList.add('transparent');
+    if ($('transparent-chk')) $('transparent-chk').checked = true;
+  }
+
+  if (query.get('controls') === '0' || query.get('controls') === 'false') {
+    hide(true);
+  }
+
+  resize();
+  setInterval(() => rebuildMoon(skyDate()), 60000);
+
+  (function animate(t) {
+    draw(t);
+    requestAnimationFrame(animate);
+  })(performance.now());
+})();
+</script>
+</body>
+</html>

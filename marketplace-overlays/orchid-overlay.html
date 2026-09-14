@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ohverlay — Living Moth Orchid</title>
+  <style>
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent;font:12px system-ui,sans-serif}canvas{display:block;width:100%;height:100%;pointer-events:none}
+    #controls{position:fixed;z-index:3;left:18px;bottom:18px;display:flex;gap:14px;align-items:center;padding:10px 13px;border:1px solid #ffffff80;border-radius:12px;background:#fffdf9dc;box-shadow:0 8px 28px #4f174020;color:#4f1740;backdrop-filter:blur(10px)}
+    #controls[hidden]{display:none}#controls label{display:flex;gap:7px;align-items:center}#size{width:150px;accent-color:#d0139e}#color{font:inherit;color:inherit;border:1px solid #e4bfd9;border-radius:7px;background:#fff;padding:4px 7px}output{min-width:34px}
+  </style>
+</head>
+<body>
+<div id="controls" hidden><label>Size <input id="size" type="range" min="50" max="200" value="100"><output id="sizeValue">100%</output></label><label>Color <select id="color"><option value="fuchsia">Fuchsia</option><option value="blush">Blush pink</option><option value="white">Pearl white</option><option value="violet">Violet</option><option value="sunset">Sunset coral</option></select></label></div>
+<canvas id="world" aria-label="A living moth orchid growing along the right edge"></canvas>
+<script>
+(() => {
+  'use strict';
+  const canvas=document.getElementById('world'),ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
+  const q=new URLSearchParams(location.search),TAU=Math.PI*2,CYCLE=8*60*60*1000,KEY='ohverlay.orchid.v1';
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),mix=(a,b,t)=>a+(b-a)*t,fract=v=>v-Math.floor(v);
+  const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)},noise=n=>fract(Math.sin(n*97.13+21.7)*43758.5453);
+  const number=(name,fallback,min,max)=>{const v=Number(q.get(name));return clamp(q.has(name)&&Number.isFinite(v)?v:fallback,min,max)};
+  const PALETTES={
+    fuchsia:{light:'#ff9de1',mid:'#d10a9f',deep:'#78054f',throat:'#5c083f',gold:'#ffd75a'},
+    blush:{light:'#fff0f7',mid:'#ef9dc8',deep:'#a8447e',throat:'#8a275f',gold:'#f5c84c'},
+    white:{light:'#ffffff',mid:'#f3e8ef',deep:'#c79bb6',throat:'#a52b78',gold:'#f1c744'},
+    violet:{light:'#d9b4ff',mid:'#8f45cf',deep:'#4d176f',throat:'#64114f',gold:'#f3c94c'},
+    sunset:{light:'#ffd1cc',mid:'#ee746f',deep:'#9f304f',throat:'#7e203f',gold:'#ffc94f'}
+  };
+  const requestedColor=q.get('color')||'fuchsia';
+  const state={scale:number('scale',1,.5,2),opacity:number('opacity',.94,.1,1),speed:number('speed',1,1,480),color:PALETTES[requestedColor]?requestedColor:'fuchsia',start:Date.now(),bend:0,velocity:0};
+  try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&Number.isFinite(saved.start))state.start=saved.start;else localStorage.setItem(KEY,JSON.stringify({start:state.start}))}catch(_){}
+  let width=1,height=1,dpr=1,last=performance.now(),ground=height;
+  const pointer={x:-9999,y:-9999,lastX:-9999,time:0,vx:0,active:false};
+  const petals=[],shedKeys=new Set();
+
+  function resize(){width=Math.max(1,innerWidth);height=Math.max(1,innerHeight);ground=clamp(number('ground',height,0,100000),0,height);dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}
+  function pointerMove(x,y){const now=performance.now(),dt=pointer.time?clamp((now-pointer.time)/1000,.008,.1):.016;if(pointer.active)pointer.vx=mix(pointer.vx,(x-pointer.lastX)/dt,.34);pointer.x=x;pointer.y=y;pointer.lastX=x;pointer.time=now;pointer.active=true}
+  addEventListener('resize',resize,{passive:true});addEventListener('pointermove',e=>pointerMove(e.clientX,e.clientY),{passive:true});addEventListener('pointerleave',()=>pointer.active=false,{passive:true});
+  window.__onCursorMove=pointerMove;window.__onCursorLeave=()=>{pointer.active=false;pointer.vx=0};window.setOpacity=v=>state.opacity=clamp(Number(v)||0,0,1);window.setScale=v=>state.scale=clamp(Number(v)||1,.5,2);window.setOrchidColor=v=>{if(PALETTES[v])state.color=v};
+
+  function life(index){
+    const absolute=(Date.now()-state.start)*state.speed/CYCLE+index*.109,age=fract(absolute);
+    // One compressed eight-hour flowering cycle: about 1.3 h as a swelling
+    // bud, 2.4 h unfolding, 2.5 h fully displayed, then a slow fade/renewal.
+    const bud=smooth((age-.01)/.15)*(1-smooth((age-.18)/.08));
+    const opening=smooth((age-.16)/.30);
+    const bloom=smooth((age-.13)/.08)*(1-smooth((age-.78)/.15));
+    const fade=smooth((age-.76)/.17)*(1-smooth((age-.95)/.04));
+    const successor=smooth((age-.79)/.17);
+    return{age,bud,opening,bloom,fade,successor,cycle:Math.floor(absolute)};
+  }
+  function plantGeometry(){
+    const s=state.scale,baseX=width-58*s,baseY=ground+3,spikeHeight=Math.min(height*.67,610)*s;
+    return{baseX,baseY,spikeHeight,topX:width-Math.min(width*.22,250)*s};
+  }
+  function spikePoint(t,g=plantGeometry()){
+    const arch=Math.sin(t*Math.PI)*g.spikeHeight*.23,wind=Math.sin(Date.now()*.00022)*5*state.scale;
+    return{x:mix(g.baseX,g.topX,t)-arch+state.bend*g.spikeHeight*t*t+wind*t,y:g.baseY-g.spikeHeight*t+Math.sin(t*Math.PI)*g.spikeHeight*.06};
+  }
+  function leafPath(x,y,length,widthLeaf,angle){
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);const g=ctx.createLinearGradient(0,-widthLeaf,length,widthLeaf);g.addColorStop(0,'#183d2b');g.addColorStop(.32,'#37694b');g.addColorStop(.67,'#224d37');g.addColorStop(1,'#102f22');ctx.fillStyle=g;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(length*.25,-widthLeaf,length*.72,-widthLeaf*.72,length,0);ctx.bezierCurveTo(length*.69,widthLeaf*.68,length*.22,widthLeaf*.78,0,0);ctx.fill();
+    ctx.strokeStyle='rgba(157,190,151,.30)';ctx.lineWidth=.75*state.scale;ctx.beginPath();ctx.moveTo(2,0);ctx.quadraticCurveTo(length*.55,-2,length*.96,0);ctx.stroke();ctx.restore();
+  }
+  function aerialRoot(x,y,length,angle,seed){
+    ctx.save();ctx.strokeStyle='rgba(164,179,151,.88)';ctx.lineWidth=(3.2+noise(seed)*2)*state.scale;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+Math.cos(angle)*length*.3,y+Math.sin(angle)*length*.22,x+Math.cos(angle+.38)*length*.72,y+Math.sin(angle+.38)*length*.74,x+Math.cos(angle+.18)*length,y+Math.sin(angle+.18)*length);ctx.stroke();ctx.strokeStyle='rgba(222,229,209,.42)';ctx.lineWidth=.8*state.scale;ctx.stroke();ctx.restore();
+  }
+  function petalShape(length,widen,tip=0){
+    ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-widen*.9,-length*.26,-widen,-length*.72,tip,-length);ctx.bezierCurveTo(widen,-length*.72,widen*.88,-length*.25,0,0);ctx.closePath();
+  }
+  function orchidPetal(length,widen,angle,colorA,colorB,alpha=1){
+    ctx.save();ctx.rotate(angle);const g=ctx.createLinearGradient(-widen,-length,widen,0);g.addColorStop(0,colorA);g.addColorStop(.48,colorB);g.addColorStop(1,'rgba(255,245,252,.96)');ctx.globalAlpha*=alpha;ctx.fillStyle=g;petalShape(length,widen,(noise(angle*17)-.5)*1.4);ctx.fill();ctx.strokeStyle='rgba(126,55,111,.16)';ctx.lineWidth=.55;ctx.stroke();ctx.strokeStyle='rgba(174,80,145,.14)';ctx.lineWidth=.38;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(i*.7,-2);ctx.quadraticCurveTo(i*1.6,-length*.45,i*2.1,-length*.88);ctx.stroke()}ctx.restore();
+  }
+  function flower(x,y,size,rotation,open,fade,seed){
+    const palette=PALETTES[state.color];ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(size*open,size*open);ctx.globalAlpha=state.opacity*(1-fade*.72);ctx.shadowColor='rgba(110,46,104,.20)';ctx.shadowBlur=5;
+    // Three sepals behind two broad petals, then the lip and fused column.
+    for(const a of [0,2.10,4.18])orchidPetal(31,11,a,palette.light,palette.mid,.94);
+    orchidPetal(37,19,-1.15,palette.mid,palette.light);orchidPetal(37,19,1.15,palette.mid,palette.light);
+    ctx.shadowBlur=0;const throat=ctx.createRadialGradient(0,4,1,0,5,13);throat.addColorStop(0,palette.gold);throat.addColorStop(.30,palette.deep);throat.addColorStop(1,palette.throat);ctx.fillStyle=throat;ctx.beginPath();ctx.moveTo(-5,1);ctx.bezierCurveTo(-14,8,-11,18,0,21);ctx.bezierCurveTo(11,18,14,8,5,1);ctx.bezierCurveTo(3,9,-3,9,-5,1);ctx.fill();
+    ctx.fillStyle=palette.light;ctx.beginPath();ctx.ellipse(0,1,3.8,7,0,0,TAU);ctx.fill();ctx.fillStyle=palette.gold;ctx.beginPath();ctx.ellipse(0,-3,2.5,1.8,0,0,TAU);ctx.fill();
+    for(let i=0;i<15;i++){const a=noise(seed+i)*TAU,r=4+noise(seed+i*2)*11;ctx.fillStyle=palette.deep;ctx.globalAlpha=state.opacity*(1-fade*.72)*.55;ctx.beginPath();ctx.arc(Math.cos(a)*r,Math.sin(a)*r*.72,noise(i+seed)*.65+.28,0,TAU);ctx.fill()}
+    ctx.restore();
+  }
+  function bud(x,y,size,rotation,open,seed){
+    const palette=PALETTES[state.color];ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(size,size);ctx.globalAlpha=state.opacity;const g=ctx.createRadialGradient(-3,-6,1,0,0,15);g.addColorStop(0,palette.light);g.addColorStop(.48,palette.mid);g.addColorStop(1,'#57795a');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,-7,8+open*3,13+open*2,.1,0,TAU);ctx.fill();ctx.strokeStyle='rgba(75,105,70,.72)';ctx.lineWidth=1;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(0,5);ctx.quadraticCurveTo((i-1)*6,-5,(i-1)*4,-17);ctx.stroke()}ctx.restore();
+  }
+  function spawnFallingPetal(index,x,y,lifeState){
+    // One shed tepal per fading flower and lifecycle. A Set prevents the same
+    // flower from spawning repeatedly throughout its long fade window.
+    const key=`${index}:${lifeState.cycle}`;if(lifeState.fade<.55||shedKeys.has(key))return;shedKeys.add(key);
+    petals.push({key,x,y,vx:-1.5-noise(index+lifeState.cycle)*3.5,vy:1.5+noise(index+2)*2.2,age:0,spin:(noise(index+7)-.5)*.62,size:(10+noise(index+4)*6)*state.scale});
+  }
+  function drawFalling(dt){
+    for(let i=petals.length-1;i>=0;i--){const p=petals[i];p.age+=dt;p.vy+=.72*dt;p.x+=p.vx*dt+Math.sin(p.age*.72+i)*2.4*dt;p.y+=p.vy*dt;if(p.age>34||p.y>ground+20){petals.splice(i,1);continue}ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.age*p.spin);ctx.globalAlpha=state.opacity*clamp(1-p.age/34,0,1);ctx.fillStyle='rgba(242,173,217,.76)';ctx.beginPath();ctx.ellipse(0,0,p.size*.72,p.size*.28,.2,0,TAU);ctx.fill();ctx.restore()}
+  }
+  function updatePhysics(dt){
+    const tip=spikePoint(.72);if(pointer.active){const dist=Math.hypot(pointer.x-tip.x,pointer.y-tip.y);if(dist<190*state.scale)state.velocity+=(pointer.vx*.000018+(tip.x<pointer.x?-.018:.018))*Math.pow(1-dist/(190*state.scale),2)}
+    pointer.vx*=Math.pow(.83,dt*60);state.velocity+=(-state.bend*10-state.velocity*5.2)*dt;state.bend=clamp(state.bend+state.velocity*dt,-.11,.11);
+  }
+  function drawPlant(dt){
+    const g=plantGeometry();ctx.save();ctx.beginPath();ctx.rect(0,0,width,ground);ctx.clip();
+    aerialRoot(g.baseX-5,g.baseY-8,92*state.scale,2.55,2);aerialRoot(g.baseX+4,g.baseY-9,78*state.scale,2.95,8);aerialRoot(g.baseX+8,g.baseY-12,65*state.scale,3.45,13);
+    leafPath(g.baseX,g.baseY-10,150*state.scale,27*state.scale,3.46);leafPath(g.baseX+2,g.baseY-14,137*state.scale,25*state.scale,3.82);leafPath(g.baseX-4,g.baseY-12,112*state.scale,23*state.scale,4.15);
+    const grad=ctx.createLinearGradient(g.baseX,g.baseY,g.topX,g.baseY-g.spikeHeight);grad.addColorStop(0,'#31593a');grad.addColorStop(.55,'#63855c');grad.addColorStop(1,'#78916b');ctx.strokeStyle=grad;ctx.lineWidth=3.2*state.scale;ctx.lineCap='round';ctx.beginPath();for(let i=0;i<=34;i++){const p=spikePoint(i/34);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)}ctx.stroke();ctx.strokeStyle='rgba(211,225,189,.30)';ctx.lineWidth=.7*state.scale;ctx.stroke();
+    for(let i=0;i<8;i++){
+      const t=.37+i*.074,p=spikePoint(t),next=spikePoint(Math.min(1,t+.01)),side=i%2?1:-1,angle=Math.atan2(next.y-p.y,next.x-p.x)+side*.84;
+      const ped=18*state.scale*(.8+noise(i)*.35),x=p.x+Math.cos(angle)*ped,y=p.y+Math.sin(angle)*ped,L=life(i);
+      ctx.strokeStyle='rgba(82,116,72,.88)';ctx.lineWidth=1.25*state.scale;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.quadraticCurveTo((p.x+x)*.5+side*3,(p.y+y)*.5,x,y);ctx.stroke();
+      const rot=angle+Math.PI*.5+side*.15;
+      if(L.bloom>.035){flower(x,y,(.72+noise(i+5)*.17)*state.scale,rot,.18+.82*L.opening,L.fade,i*19);spawnFallingPetal(i,x,y,L)}else bud(x,y,(.72+noise(i)*.18)*state.scale,rot,.08+L.bud*.3,i);
+      if(L.successor>.12){const bx=p.x-side*7*state.scale,by=p.y+9*state.scale;bud(bx,by,.42*state.scale,rot-side*.4,L.successor*.12,100+i)}
+    }
+    drawFalling(dt);ctx.restore();
+  }
+  function frame(now){const dt=clamp((now-last)/1000,0,.05);last=now;updatePhysics(dt);ctx.clearRect(0,0,width,height);drawPlant(dt);requestAnimationFrame(frame)}
+  const controls=document.getElementById('controls'),sizeInput=document.getElementById('size'),sizeValue=document.getElementById('sizeValue'),colorInput=document.getElementById('color');
+  if(q.get('controls')==='1'){controls.hidden=false;sizeInput.value=String(Math.round(state.scale*100));sizeValue.textContent=`${sizeInput.value}%`;colorInput.value=state.color;sizeInput.addEventListener('input',()=>{window.setScale(Number(sizeInput.value)/100);sizeValue.textContent=`${sizeInput.value}%`});colorInput.addEventListener('change',()=>window.setOrchidColor(colorInput.value))}
+  window._orchid={snapshot:()=>({bend:state.bend,petals:petals.length,cycleHours:8,speed:state.speed,scale:state.scale,color:state.color,ground})};resize();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

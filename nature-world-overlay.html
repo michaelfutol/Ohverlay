@@ -665,6 +665,7 @@
       // 5. MAIN SIMULATION & DRAW LOOP
       // ──────────────────────────────────────────
       function frame(now) {
+        if (width !== innerWidth || height !== innerHeight) resize();
         const dt = Math.min(0.05, (now - lastTime) / 1000);
         lastTime = now;
         elapsed += dt;

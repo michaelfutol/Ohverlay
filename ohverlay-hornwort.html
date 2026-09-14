@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ohverlay · Hornwort · 008.0</title>
+<style>
+:root{color-scheme:dark;--ink:#e1e9da;--muted:#9bab95;--line:#c6e2ad26;--panel:#13201bed;--accent:#b7db8f}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071410;color:var(--ink);font:13px/1.55 system-ui,sans-serif}button,input,select{font:inherit}button,select{min-height:37px;border:1px solid var(--line);border-radius:8px;background:#1c3026;color:var(--ink);padding:7px 11px}button{cursor:pointer}button:hover{border-color:#b7db8f88}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.primary{background:#c0da9f;color:#18231a;border-color:#c0da9f}
+.backdrop{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 95% 15%,#264f2a4a,transparent 55%),linear-gradient(115deg,#071416,#0d211c 55%,#09160d)}.backdrop::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(108deg,transparent 0 20%,#a6cb7d05 22% 23%,transparent 25% 32%);filter:blur(15px)}#world{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}.header{position:fixed;top:24px;left:4vw;right:210px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:13px;pointer-events:none}.brand{font-size:21px;font-weight:600;letter-spacing:-1px}.brand::before{content:"";display:inline-block;width:6px;height:15px;border-radius:70% 0 70% 0;background:var(--accent);margin-right:10px;transform:rotate(25deg)}.eyebrow{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted)}.intro{position:fixed;top:18%;left:6vw;pointer-events:none;max-width:340px}.intro h1{font:400 clamp(35px,4.8vw,63px)/1.1 Georgia,serif;letter-spacing:-1.8px;margin:12px 0}.intro h1 em{color:#c1dca3}.intro p{color:var(--muted);font-size:12px;max-width:270px}.controls{position:fixed;z-index:4;left:24px;bottom:24px;width:min(640px,calc(100% - 200px));max-height:65vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px;box-shadow:0 8px 38px #0003}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.row+.row{margin-top:13px}.slider{display:grid;gap:4px;flex:1 1 110px;min-width:100px}.slider.wide{flex-basis:100%}label{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px}output{font-variant-numeric:tabular-nums;color:var(--ink)}input[type=range]{accent-color:var(--accent);width:100%;margin:0}select{width:100%}.divider{padding-top:12px;border-top:1px solid var(--line)}.clock{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.clock strong{color:var(--ink);font-weight:500}#notice{font-size:10px;color:var(--muted);margin:9px 0 0}.preview-note{color:#e4ca94;font-size:11px}#preview-note[hidden]{display:none}.restore{position:fixed;z-index:5;left:18px;bottom:18px;display:none;background:var(--panel)}#base-guide{position:fixed;z-index:3;left:0;right:0;border-top:1px dashed #c5e7a27a;pointer-events:none}#base-guide span{position:absolute;right:10px;bottom:3px;color:#c7dfa9;font-size:9px;letter-spacing:.6px}#error{position:fixed;top:20%;left:8%;right:8%;padding:22px;background:var(--panel);border:1px solid #c9a965;border-radius:12px;z-index:9}#error[hidden]{display:none}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html.transparent,html.transparent body,html.object-only,html.object-only body{background:transparent}html.transparent .backdrop,html.object-only .backdrop{display:none}html.object-only .chrome{display:none}html.object-only .restore{display:block}html.no-controls .restore{display:none}html.object-only #base-guide{display:none!important}html:fullscreen{width:100%;height:100%}html::backdrop{background:transparent}
+body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--accent:#4f732c;background:#becdad}body.day .backdrop{background:radial-gradient(ellipse at 90% 15%,#e5efce,#b5c7ac 80%)}body.day button,body.day select{background:#cedbbd;color:#243c29}body.day .intro h1 em{color:#537431}
+@media(max-width:750px){.header{top:17px;left:18px;right:145px}.header .eyebrow{display:none}.intro{left:22px;top:16%;max-width:200px}.intro h1{font-size:36px}.intro p{font-size:11px;max-width:170px}.controls{left:10px;bottom:10px;width:calc(100% - 150px);max-height:48vh;padding:11px}.row{gap:7px}.slider{min-width:80px;flex-basis:90px}button{font-size:10px;padding:6px 8px}.clock{font-size:10px}}@media(max-width:420px){.controls{width:calc(100% - 100px)}.intro{max-width:170px}.intro h1{font-size:30px}}@media(max-height:520px){.intro{display:none}.controls{max-height:65vh}.header{top:10px}}
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+<header class="header chrome"><span class="brand">ohverlay</span><span class="eyebrow">Hornwort / Eight-hour growth / 008.0</span></header>
+<div class="intro chrome" aria-hidden="true"><span class="eyebrow">A little patience, in green</span><h1>Let the<br><em>hours grow.</em></h1><p>One shared base. Four quiet stems.<br>Up the right edge in eight hours.<br>Then slowly left, along the top.</p></div>
+<canvas id="world" role="img" aria-label="Four fine-leaved hornwort stems growing from a shared base along the right edge">Canvas 2D is required to display this plant.</canvas>
+<div id="base-guide" class="chrome" aria-hidden="true"><span>ALIGN THIS BASE WITH YOUR TASKBAR TOP</span></div>
+<section class="controls chrome" id="controls" aria-label="Hornwort growth and alignment controls">
+<div class="clock"><strong id="age">Growth age · 00:00:00</strong><span id="stage" role="status">Starting at one-third height</span></div>
+<div class="row"><button id="pause-growth" class="primary" type="button" aria-pressed="false">Pause growth</button><button id="pause-current" type="button" aria-pressed="false">Still water</button><button id="reset" type="button">Restart growth</button></div>
+<div class="row divider">
+<div class="slider"><label for="stems">Stems</label><select id="stems"><option value="3">3 stems</option><option value="4" selected>4 stems</option></select></div>
+<div class="slider"><label for="fullness">Leaf fullness <output id="fullness-value">100%</output></label><input id="fullness" type="range" min="70" max="130" step="5" value="100"></div>
+<div class="slider"><label for="current">Water movement <output id="current-value">7%</output></label><input id="current" type="range" min="0" max="35" step="1" value="7"></div>
+</div>
+<div class="row">
+<div class="slider"><label for="base">Base above bottom <output id="base-value">48 px</output></label><input id="base" type="range" min="0" max="160" step="1" value="48"></div>
+<div class="slider"><label for="edge">Right gap <output id="edge-value">10 px</output></label><input id="edge" type="range" min="0" max="96" step="1" value="10"></div>
+<div class="slider"><label for="transparency">Transparency <output id="transparency-value">0%</output></label><input id="transparency" type="range" min="0" max="100" step="5" value="0"></div>
+</div>
+<div class="row divider"><div class="slider wide"><label for="preview">Preview growth (does not reset the clock) <output id="preview-value">Live</output></label><input id="preview" type="range" min="0" max="16" step="0.25" value="0"></div></div>
+<div class="row"><button id="live" type="button">Return to live</button><button id="preview-eight" type="button">Preview 8h</button><button id="preview-sixteen" type="button">Preview 16h</button><button id="guide" type="button" aria-pressed="true">Base guide: on</button></div>
+<p class="preview-note" id="preview-note" hidden>Preview only — your real growth clock is unchanged.</p>
+<div class="row divider"><button id="background" type="button" aria-pressed="false">Transparent background</button><button id="theme" type="button" aria-pressed="false">Day backdrop</button><button id="fullscreen" type="button" aria-pressed="false">Fullscreen</button><button id="hide" type="button">Hide interface</button></div>
+<p id="notice">Preparing the saved growth clock…</p><p class="sr-only">Set the base offset to zero if your host window already ends above the taskbar. Escape restores hidden controls.</p>
+</section>
+<button id="restore" class="restore" type="button">Restore controls · Esc</button>
+<div id="error" role="alert" hidden>Canvas 2D could not start. Open the complete HTML file in a browser with Canvas support.</div>
+<noscript>Enable JavaScript to display the hornwort and growth clock.</noscript>
+<script>
+(() => {
+ 'use strict';
+ const canvas = document.getElementById('world'), context = canvas.getContext('2d', { alpha: true });
+ if (!context) { document.getElementById('error').hidden = false; return; }
+ const root = document.documentElement, guide = document.getElementById('base-guide');
+ const storageKey = 'ohverlay.hornwort.008.v1', hour = 3600000;
+ const preference = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+
+ const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+ const mix = (first, last, amount) => first + (last - first) * amount;
+ const smooth = value => { const amount = clamp(value, 0, 1); return amount * amount * (3 - 2 * amount); };
+ const noise = seed => { const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return value - Math.floor(value); };
+
+ const state = {
+  width: 1, height: 1, dpr: 1, wave: 0, lastFrame: null, timer: null, preview: null,
+  stems: 4, fullness: 1, current: 0.07, base: 48, edge: 10, opacity: 1,
+  guide: true, still: preference.matches, background: false, objectOnly: false,
+  storage: true, lastSave: 0, tiles: [], userScale: 1.0, speed: 1.0,
+  xmasLights: false, xmasMode: 'twinkle', xmasTheme: 'multicolor'
+ };
+ const clock = { elapsed: 0, anchor: Date.now(), paused: false };
+
+ function elapsedMs(now = Date.now()) {
+  const mult = state.speed || 1.0;
+  return clock.elapsed + (clock.paused ? 0 : Math.max(0, (now - clock.anchor) * mult));
+ }
+
+ function readSaved() {
+  try {
+   const raw = window.localStorage.getItem(storageKey); if (!raw) return;
+   const saved = JSON.parse(raw);
+   if (saved.version !== 1 || !Number.isFinite(saved.elapsed) || saved.elapsed < 0 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0 || typeof saved.paused !== 'boolean') return;
+   clock.elapsed = saved.elapsed + (saved.paused ? 0 : Math.max(0, Date.now() - saved.savedAt));
+   clock.anchor = Date.now();
+   clock.paused = saved.paused;
+   const settings = saved.settings || {};
+   for (const [name, low, high] of [['stems', 1, 6], ['fullness', 0.7, 1.3], ['current', 0, 0.35], ['base', 0, 160], ['edge', 0, 96], ['opacity', 0, 1], ['speed', 0.1, 100]]) {
+    if (Number.isFinite(settings[name])) state[name] = clamp(name === 'stems' ? Math.round(settings[name]) : settings[name], low, high);
+   }
+  } catch { state.storage = false; }
+ }
+
+ function save() {
+  const now = Date.now(), elapsed = elapsedMs(now);
+  clock.elapsed = elapsed; clock.anchor = now; state.lastSave = now;
+  try {
+   window.localStorage.setItem(storageKey, JSON.stringify({
+    version: 1, elapsed, savedAt: now, paused: clock.paused,
+    settings: { stems: state.stems, fullness: state.fullness, current: state.current, base: state.base, edge: state.edge, opacity: state.opacity, speed: state.speed }
+   }));
+   state.storage = true;
+  } catch { state.storage = false; }
+  updateNotice();
+ }
+
+ function updateNotice() {
+  const n = document.getElementById('notice');
+  if (n) n.textContent = state.storage ? 'Clock saved in this browser · base offset is manual, not taskbar detection.' : 'Storage unavailable · growth works in this session, but may reset when reopened.';
+ }
+
+ /* ─── Scene & Fluid Botanical Geometry ────────────────────────── */
+ function scene() {
+  const userScale = state.userScale || 1.0;
+  const scale = Math.min(1, state.width / 620, state.height / 520) * userScale;
+  const bottom = Math.max(1, state.height - Math.min(state.base, state.height * 0.45));
+  const right = Math.max(1, state.width - Math.min(state.edge, state.width * 0.25));
+  // Single root crown base point right on the taskbar line
+  const baseX = right - (48 * state.fullness + 8) * scale;
+  return { scale, bottom, right, baseX };
+ }
+
+ function geometry(index) {
+  const view = scene();
+  const laneOffsets = [24, 70, 118, 168, 218, 268, 318, 368];
+  const stemCount = state.stems || 4;
+  const laneX = Math.max(25 * view.scale, view.right - (laneOffsets[index] || (24 + index * 48)) * view.scale * Math.min(1.15, state.fullness));
+
+  // Natural staggered top reaches along the water surface
+  const top = (24 * state.fullness + index * 16) * view.scale;
+  // Broad, sweeping organic arch into the surface (not a sharp corner)
+  const radius = Math.max(24, Math.min((52 + index * 16) * view.scale, (view.bottom - top) * 0.32));
+  const vertical = Math.max(1, view.bottom - top - radius);
+  const corner = Math.PI * radius / 2;
+  const left = (34 + index * 20) * view.scale;
+  const horizontal = Math.max(0, laneX - radius - left);
+
+  return {
+   ...view, index, laneX, top, radius, vertical, corner, horizontal,
+   initial: (view.bottom - top) / 3,
+   topLength: vertical + corner,
+   total: vertical + corner + horizontal
+  };
+ }
+
+ function visibleLength(shape, hours) {
+  return hours <= 8 ? mix(shape.initial, shape.topLength, clamp(hours / 8, 0, 1)) : shape.topLength + shape.horizontal * clamp((hours - 8) / 8, 0, 1);
+ }
+
+ function centerAt(shape, distance) {
+  const amount = clamp(distance, 0, shape.total);
+  let horizontal, vertical;
+
+  if (amount <= shape.vertical) {
+   const progress = amount / shape.vertical;
+
+   // 1. Root convergence: stems start together at baseX directly on the taskbar line
+   // Graceful fanning out across the lower 38% of height in a smooth S-curve
+   const fan = smooth(progress / 0.38);
+   const rootStemOffset = (shape.index - (state.stems - 1) / 2) * 4 * shape.scale;
+   const startX = shape.baseX + rootStemOffset;
+   const baseLane = mix(startX, shape.laneX, fan);
+
+   // 2. Fluid natural biological arching (supple organic curves, not steel wires)
+   const arch1 = Math.sin(progress * Math.PI * 1.15 + shape.index * 0.95);
+   const arch2 = Math.sin(progress * Math.PI * 2.1 - shape.index * 0.8);
+   const sign = (shape.index % 2 === 0 ? 1 : -1);
+   const organicCurve = (arch1 * 12 + arch2 * 5) * sign * shape.scale * smooth(progress / 0.20);
+
+   horizontal = baseLane + organicCurve;
+   vertical = shape.bottom - amount;
+  } else if (amount <= shape.topLength) {
+   // Seamless, broad sweeping crest into the top surface (smooth continuous derivative)
+   const t = (amount - shape.vertical) / shape.radius;
+   const smoothAngle = smooth(t) * (Math.PI / 2);
+   horizontal = shape.laneX - shape.radius + Math.cos(smoothAngle) * shape.radius;
+   vertical = shape.top + shape.radius - Math.sin(smoothAngle) * shape.radius;
+  } else {
+   // Horizontal stem drifting leftward along the water surface
+   const horizDist = amount - shape.topLength;
+   horizontal = shape.laneX - shape.radius - horizDist;
+   // Gentle floating undulation on the water surface
+   const surfaceFloat = Math.sin(horizDist * 0.016 + shape.index * 1.3) * 3.2 * shape.scale;
+   vertical = shape.top + surfaceFloat;
+  }
+
+  return { x: horizontal, y: vertical };
+ }
+
+ /* ─── Gentle Viscous Fluid Physics (Zero Spring Oscillation) ─── */
+ const pointer = {
+  x: -9999, y: -9999,
+  vx: 0, vy: 0,
+  lastX: -9999, lastY: -9999,
+  lastTime: 0,
+  active: false
+ };
+
+ window.addEventListener('pointermove', event => {
+  const now = performance.now();
+  const dt = pointer.lastTime ? Math.max(0.008, Math.min(0.08, (now - pointer.lastTime) / 1000)) : 0.016;
+  if (pointer.active && pointer.lastX !== -9999) {
+   const rawVx = (event.clientX - pointer.lastX) / dt;
+   const rawVy = (event.clientY - pointer.lastY) / dt;
+   pointer.vx = mix(pointer.vx, rawVx, 0.35);
+   pointer.vy = mix(pointer.vy, rawVy, 0.35);
+  }
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  pointer.lastX = event.clientX;
+  pointer.lastY = event.clientY;
+  pointer.lastTime = now;
+  pointer.active = true;
+ }, { passive: true });
+
+ window.addEventListener('pointerleave', () => {
+  pointer.active = false;
+  pointer.vx = 0; pointer.vy = 0;
+ });
+
+ const NUM_NODES = 7;
+ const stemPhysics = Array.from({ length: 12 }, () => ({
+  nodes: Array.from({ length: NUM_NODES }, () => ({
+   offset: 0,
+   targetOffset: 0
+  }))
+ }));
+
+ let activeFishWakes = [];
+ let lastFishWakeTime = 0;
+ const waterWakeChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ohverlay_water_wake') : null; let lastStemBroadcast = 0;
+ if (waterWakeChannel) {
+  waterWakeChannel.onmessage = event => {
+   if (event.data && (event.data.type === 'tetra_wake' || event.data.type === 'betta_wake' || event.data.type === 'cichlid_wake') && Array.isArray(event.data.wakes)) {
+    activeFishWakes = event.data.wakes;
+    lastFishWakeTime = performance.now();
+   }
+  };
+ }
+
+ /* ─── Botanical Pearling & Oxygen Bubbles (Photosynthesis) ───── */
+  const hornwortPearls = [];
+ let nextPearlingTime = performance.now() + 25000;
+
+ function spawnHornwortBubble(x, y, radius, vy, lifespan) {
+  if (hornwortPearls.length >= 4) return;
+  hornwortPearls.push({
+   x,
+   y,
+   baseX: x,
+   radius: radius || (1.1 + Math.random() * 0.6),
+   vy: vy || (-16 - Math.random() * 10),
+   wobblePhase: Math.random() * Math.PI * 2,
+   wobbleSpeed: 1.5 + Math.random() * 0.8,
+   wobbleAmp: 0.5 + Math.random() * 0.5,
+   alpha: 0.8,
+   age: 0,
+   lifespan: lifespan || (3.5 + Math.random() * 2.0)
+  });
+ }
+
+ function updateWaterPhysics(dt) {
+  if (state.still) {
+   for (const sp of stemPhysics) {
+    for (const node of sp.nodes) {
+     node.offset *= 0.85;
+     node.targetOffset = 0;
+    }
+   }
+   return;
+  }
+
+  // Smooth decay of cursor velocity
+  pointer.vx *= Math.pow(0.85, dt * 60);
+  pointer.vy *= Math.pow(0.85, dt * 60);
+
+  // Age out fish wakes if no signal for > 350ms
+  if (performance.now() - lastFishWakeTime > 350) {
+   activeFishWakes = [];
+  }
+
+  const view = scene();
+  const radius = 160 * view.scale; // subtle influence radius
+
+  for (let s = 0; s < state.stems; s++) {
+   const shape = geometry(s);
+   const sp = stemPhysics[s];
+
+   for (let n = 0; n < NUM_NODES; n++) {
+    const node = sp.nodes[n];
+    const frac = (n + 1) / NUM_NODES;
+    const distance = frac * shape.vertical;
+    const pos = centerAt(shape, distance);
+
+    // Mouse wake nudge (whisper-soft)
+    if (pointer.active && pointer.x > -100) {
+     const dx = pointer.x - pos.x;
+     const dy = pointer.y - pos.y;
+     const dist = Math.hypot(dx, dy);
+
+     if (dist < radius) {
+      const prox = 1 - dist / radius;
+      const proxCurve = prox * prox;
+
+      const pushDir = (pos.x > pointer.x ? 1 : -1);
+      const wakeImpulse = (pointer.vx * 0.0016 + pushDir * Math.min(1.0, Math.abs(pointer.vy) * 0.002)) * proxCurve * 3.5 * view.scale;
+      
+      const gentlePush = clamp(wakeImpulse, -1.6, 1.6);
+      node.targetOffset += gentlePush * dt * 25;
+     }
+    }
+
+    // Fish wake & feeding interaction (gentle slipstream and organic frond flutter)
+    if (activeFishWakes.length > 0) {
+      for (let i = 0; i < activeFishWakes.length; i++) {
+       const fish = activeFishWakes[i];
+       const isBetta = !!fish.isBetta;
+       const fishRadius = (isBetta ? 195 : 120) * view.scale;
+       const dx = fish.x - pos.x;
+       const dy = fish.y - pos.y;
+       const dist = Math.hypot(dx, dy);
+
+       if (dist < fishRadius) {
+        const prox = 1 - dist / fishRadius;
+        const proxCurve = prox * prox;
+
+        // Water displacement pushed in fish swim direction plus slight lateral outward push
+        const pushDir = (pos.x > fish.x ? 1 : -1);
+        const massMultiplier = isBetta ? 1.65 : 1.0;
+        let fishImpulse = (fish.vx * 0.0020 + pushDir * Math.min(1.0, Math.abs(fish.vy) * 0.0025 + 0.35)) * proxCurve * 2.8 * view.scale * massMultiplier;
+
+        // If fish is nibbling / feeding on this hornwort foliage, add delicate leaf flutter
+        if (fish.nibbling && dist < (isBetta ? 48 : 35) * view.scale) {
+         const nibbleFlutter = Math.sin(performance.now() * 0.015 + s * 1.8 + n * 0.8) * (isBetta ? 1.2 : 0.8) * proxCurve * view.scale;
+         fishImpulse += nibbleFlutter;
+         // Dislodge pearling micro-bubbles from pecking
+         if (Math.random() < (isBetta ? 0.06 : 0.035)) {
+          spawnHornwortBubble(pos.x, pos.y, 1.2 + Math.random() * 0.7, -18 - Math.random() * 12, 3.2 + Math.random() * 2.0);
+         }
+        }
+
+        const maxPush = isBetta ? 2.6 : 1.8;
+        const gentleFishPush = clamp(fishImpulse, -maxPush, maxPush);
+        node.targetOffset += gentleFishPush * dt * 25;
+       }
+      }
+     }
+
+     // Maximum deflection strictly clamped to a gentle whisper
+     node.targetOffset = clamp(node.targetOffset, -8 * view.scale, 8 * view.scale);
+
+     // Lazy fluid drift return - asymptotic exponential easing, ZERO spring / ZERO bounce!
+     node.offset = mix(node.offset, node.targetOffset, 0.065);
+     node.targetOffset *= Math.pow(0.965, dt * 60); // lazily returns over ~2.5s
+    }
+
+    // Wave upward propagation along the supple stem
+    for (let n = 1; n < NUM_NODES; n++) {
+     sp.nodes[n].targetOffset += sp.nodes[n - 1].targetOffset * 0.022;
+    }
+   }
+
+   // Bothways Physics: Broadcast Hornwort stems coordinates to Betta
+   const nowTime = performance.now();
+   if (waterWakeChannel && (nowTime - lastStemBroadcast >= 100) && state.stems > 0) {
+    lastStemBroadcast = nowTime;
+    const stemsData = [];
+    for (let s = 0; s < state.stems; s++) {
+     const shape = geometry(s);
+     const sp = stemPhysics[s];
+     const topPos = centerAt(shape, shape.vertical);
+     const midPos = centerAt(shape, shape.vertical * 0.5);
+     const topOffset = sp ? sp.nodes[NUM_NODES - 1].offset : 0;
+     const midOffset = sp ? sp.nodes[Math.floor(NUM_NODES / 2)].offset : 0;
+     stemsData.push({
+      index: s,
+      baseX: shape.x,
+      baseY: shape.baseY || (state.height - 20),
+      midX: midPos.x + midOffset,
+      midY: midPos.y,
+      topX: topPos.x + topOffset,
+      topY: topPos.y,
+      height: shape.vertical,
+      radius: 38 * view.scale
+     });
+    }
+    try {
+     waterWakeChannel.postMessage({
+      type: 'hornwort_stems',
+      stems: stemsData
+     });
+    } catch(e) {}
+   }
+
+   // Rare spontaneous plant pearling (occasional single oxygen bubble every 30-70 seconds)
+   if (nowTime >= nextPearlingTime) {
+    nextPearlingTime = nowTime + (30000 + Math.random() * 40000);
+    const sIndex = Math.floor(Math.random() * state.stems);
+    const shape = geometry(sIndex);
+    const hours = state.preview === null ? elapsedMs() / hour : state.preview;
+    const currentLen = visibleLength(shape, hours);
+    const dist = (0.45 + Math.random() * 0.45) * shape.total;
+    if (dist <= currentLen) {
+     const pt = pointAt(shape, dist);
+     if (pt) {
+      spawnHornwortBubble(pt.x, pt.y, 1.2 + Math.random() * 0.6, -18 - Math.random() * 10, 4.0 + Math.random() * 2.5);
+     }
+    }
+   }
+  }
+
+ function getMouseDisplacement(shape, distance) {
+  if (state.still || distance <= 0) return 0;
+  const sp = stemPhysics[shape.index];
+  if (!sp) return 0;
+
+  // Root anchor protection: strictly 0 displacement at the taskbar line
+  const rootAnchor = smooth(distance / (55 * shape.scale));
+  if (rootAnchor <= 0) return 0;
+
+  const frac = clamp(distance / Math.max(1, shape.vertical), 0, 1);
+  const scaledIdx = frac * (NUM_NODES - 1);
+  const i0 = Math.floor(scaledIdx);
+  const i1 = Math.min(NUM_NODES - 1, i0 + 1);
+  const t = scaledIdx - i0;
+
+  const off0 = sp.nodes[i0].offset;
+  const off1 = sp.nodes[i1].offset;
+  const interpolated = mix(off0, off1, smooth(t));
+
+  return interpolated * rootAnchor;
+ }
+
+ function pointAt(shape, distance) {
+  const point = centerAt(shape, distance);
+  const before = centerAt(shape, Math.max(0, distance - 1.0));
+  const after = centerAt(shape, Math.min(shape.total, distance + 1.0));
+  const directionX = after.x - before.x;
+  const directionY = after.y - before.y;
+  const magnitude = Math.hypot(directionX, directionY) || 1;
+  const normalX = -directionY / magnitude;
+  const normalY = directionX / magnitude;
+
+  const totalLen = Math.max(1, shape.total);
+  const frac = clamp(distance / totalLen, 0, 1);
+
+  // Root anchor protection: strictly zero displacement at the taskbar line
+  const rootDamping = smooth(distance / (55 * shape.scale));
+
+  // 1. Ambient fluid travelling waves (simulating water currents rippling up the plant)
+  const waveTime = state.wave;
+  const currentStrength = state.current * 14 * shape.scale;
+  
+  // Wave 1: Slow, buoyant deep current sway (travels upward)
+  const wave1 = Math.sin(waveTime * 0.75 - distance * 0.008 + shape.index * 1.35) * 11 * shape.scale * Math.pow(frac, 1.1);
+  
+  // Wave 2: Sinuous water ripple (higher frequency harmonic)
+  const wave2 = Math.sin(waveTime * 1.45 - distance * 0.016 + shape.index * 2.1) * 4.5 * shape.scale * frac;
+  
+  // Wave 3: Subtle breath / drift
+  const wave3 = Math.sin(waveTime * 0.3 + shape.index * 0.7) * 3 * shape.scale * frac;
+
+  const ambientFluidSway = (wave1 + wave2 + wave3) * (currentStrength / (7 * shape.scale + 0.1)) * rootDamping;
+
+  // 2. Interactive gentle mouse water current (pure viscous drift, zero spring!)
+  const mouseDrift = getMouseDisplacement(shape, distance);
+
+  const totalDisplacement = ambientFluidSway + mouseDrift;
+
+  return {
+   x: point.x + normalX * totalDisplacement,
+   y: point.y + normalY * totalDisplacement,
+   angle: Math.atan2(directionX, -directionY)
+  };
+ }
+
+ /* ─── Leaf Tiles ─────────────────────────────────────────────── */
+ function makeTile(variant, young) {
+  const tile = document.createElement('canvas'); tile.width = 128; tile.height = 128;
+  const brush = tile.getContext('2d');
+  const leaves = 8 + (variant % 3), seed = variant * 17 + 4;
+  const order = Array.from({ length: leaves }, (_, index) => index).sort((first, second) => Math.sin(first / leaves * Math.PI * 2) - Math.sin(second / leaves * Math.PI * 2));
+  brush.translate(64, 91); brush.scale(2, 2); brush.lineCap = 'round'; brush.lineJoin = 'round';
+  for (const leaf of order) {
+   const angle = leaf / leaves * Math.PI * 2 + noise(seed) * 0.9, depth = Math.sin(angle), side = Math.cos(angle);
+   const spread = 20 + noise(seed + leaf) * 7, endX = side * spread, endY = -18 + depth * 7 - noise(seed + leaf + 31) * 5;
+   const middleX = endX * 0.45, middleY = endY * 0.48;
+   const hue = young ? 78 + noise(seed + leaf) * 9 : 87 + noise(seed + leaf) * 12;
+   const light = (young ? 54 : 32) + (depth + 1) * 8 + noise(seed + leaf + 11) * 7;
+   brush.beginPath(); brush.moveTo(0, 0); brush.quadraticCurveTo(middleX * 0.5, middleY * 0.25, middleX, middleY);
+   const length = Math.hypot(endX, endY), normalX = -endY / length, normalY = endX / length;
+   for (const fork of [-1, 1]) {
+    const branchX = endX * 0.76 + normalX * fork * 2.5, branchY = endY * 0.76 + normalY * fork * 2.5;
+    brush.moveTo(middleX, middleY); brush.quadraticCurveTo((middleX + branchX) * 0.5, branchY + 2, branchX, branchY);
+    for (const tip of [-1, 1]) {
+     const tipX = endX + normalX * (fork * 4.6 + tip * 2), tipY = endY + normalY * (fork * 4.6 + tip * 2) - 2;
+     brush.moveTo(branchX, branchY); brush.quadraticCurveTo((branchX + tipX) * 0.5, tipY + 2, tipX, tipY);
+    }
+   }
+   brush.strokeStyle = `hsla(${hue},${young ? 76 : 60}%,${light}%,${depth < 0 ? 0.77 : 0.95})`;
+   brush.lineWidth = depth < 0 ? 0.62 : 0.82; brush.stroke();
+   if (depth > -0.3) {
+    brush.strokeStyle = `hsla(${hue - 6},75%,${light + 12}%,.32)`; brush.lineWidth = 0.24; brush.stroke();
+   }
+  }
+  brush.beginPath(); brush.moveTo(0, 3); brush.lineTo(0, -8);
+  brush.strokeStyle = young ? '#b0d268' : '#638c39'; brush.lineWidth = 0.75; brush.stroke();
+  return tile;
+ }
+
+ function buildTiles() {
+  state.tiles = [false, true].map(young => Array.from({ length: 12 }, (_, index) => makeTile(index, young)));
+ }
+
+ /* ─── Drawing ─────────────────────────────────────────────────── */
+ function drawStem(index, hours) {
+  const shape = geometry(index), length = visibleLength(shape, hours);
+  const spacing = 11 * shape.scale / state.fullness;
+  const points = [];
+  const step = 4 * shape.scale;
+  for (let distance = 0; distance < length; distance += step) points.push(pointAt(shape, distance));
+  points.push(pointAt(shape, length));
+
+  if (points.length >= 2) {
+   // Tapered fluid botanical stem spine (batched continuous sections)
+   const n = points.length;
+   const idx1 = Math.floor(n * 0.35);
+   const idx2 = Math.floor(n * 0.70);
+   const sections = [
+    { start: 0, end: idx1, width: 2.3 * shape.scale },
+    { start: idx1, end: idx2, width: 1.5 * shape.scale },
+    { start: idx2, end: n - 1, width: 0.85 * shape.scale }
+   ];
+
+   context.lineCap = 'round';
+   context.lineJoin = 'round';
+
+   for (const sec of sections) {
+    context.beginPath();
+    context.moveTo(points[sec.start].x, points[sec.start].y);
+    for (let i = sec.start + 1; i <= sec.end; i++) {
+     context.lineTo(points[i].x, points[i].y);
+    }
+    context.strokeStyle = index % 2 ? '#41662c' : '#527533';
+    context.lineWidth = sec.width;
+    context.stroke();
+
+    context.strokeStyle = '#a6c66655';
+    context.lineWidth = sec.width * 0.45;
+    context.stroke();
+   }
+  }
+
+  // Draw fine hornwort leaf whorls
+  const start = 9 * shape.scale;
+  for (let node = 0, distance = start; distance < length; node++, distance = start + node * spacing) {
+   const remaining = length - distance, development = smooth(remaining / (19 * shape.scale));
+   if (development <= 0) continue;
+   const point = pointAt(shape, distance), young = remaining < 55 * shape.scale;
+   const variation = 0.87 + noise(node * 11 + index * 87) * 0.23;
+   const leafScale = shape.scale * variation * state.fullness * (0.28 + 0.72 * development) * (0.35 + 0.65 * smooth(distance / (55 * shape.scale)));
+   context.save(); context.translate(point.x, point.y);
+   context.rotate(point.angle + (0.5 - noise(node * 7 + index * 43)) * 0.14);
+   context.globalAlpha = state.opacity * (0.35 + 0.65 * development);
+   context.drawImage(state.tiles[young ? 1 : 0][(node + index * 5) % 12], -32 * leafScale, -45.5 * leafScale, 64 * leafScale, 64 * leafScale);
+   context.restore();
+  }
+
+  // Draw tiny, soothing Christmas micro LED fairy lights if enabled
+  if (state.xmasLights) {
+   drawStemXmasLights(shape, length, spacing, index);
+  }
+
+  const tip = pointAt(shape, length);
+  context.save(); context.translate(tip.x, tip.y); context.rotate(tip.angle);
+  context.fillStyle = '#cae290'; context.beginPath();
+  context.ellipse(0, 0, 1.3 * shape.scale, 3.2 * shape.scale, 0, 0, Math.PI * 2); context.fill(); context.restore();
+ }
+
+ const XMAS_PALETTES = {
+  multicolor: [
+   { core: '#ffffff', glow: '#ffd700', halo: 'rgba(255, 215, 0, 0.75)' },  // Radiant Gold
+   { core: '#ffffff', glow: '#ff1744', halo: 'rgba(255, 23, 68, 0.75)' },  // Radiant Ruby Red
+   { core: '#ffffff', glow: '#00e676', halo: 'rgba(0, 230, 118, 0.72)' },  // Radiant Emerald
+   { core: '#ffffff', glow: '#2979ff', halo: 'rgba(41, 121, 255, 0.75)' }, // Radiant Sapphire
+   { core: '#ffffff', glow: '#ff9100', halo: 'rgba(255, 145, 0, 0.75)' },  // Radiant Amber
+   { core: '#ffffff', glow: '#e040fb', halo: 'rgba(224, 64, 251, 0.72)' }  // Radiant Amethyst
+  ],
+  warm_gold: [
+   { core: '#ffffff', glow: '#ffe066', halo: 'rgba(255, 224, 102, 0.80)' }, // Pure Gold
+   { core: '#ffffff', glow: '#ffb300', halo: 'rgba(255, 179, 0, 0.78)' },   // Deep Warm Amber
+   { core: '#ffffff', glow: '#fff2b2', halo: 'rgba(255, 242, 178, 0.72)' }, // Champagne
+   { core: '#ffffff', glow: '#fffde7', halo: 'rgba(255, 253, 231, 0.68)' }  // Candlelight Pearl
+  ],
+  candy_cane: [
+   { core: '#ffffff', glow: '#ff1744', halo: 'rgba(255, 23, 68, 0.80)' },   // Candy Red
+   { core: '#ffffff', glow: '#ffffff', halo: 'rgba(255, 255, 255, 0.75)' }, // Pure Snow White
+   { core: '#ffffff', glow: '#f50057', halo: 'rgba(245, 0, 87, 0.78)' },   // Bright Crimson
+   { core: '#ffffff', glow: '#ffe4e6', halo: 'rgba(255, 228, 230, 0.68)' }  // Frosted Sugar White
+  ],
+  winter_frost: [
+   { core: '#ffffff', glow: '#00e5ff', halo: 'rgba(0, 229, 255, 0.80)' },  // Glacier Cyan
+   { core: '#ffffff', glow: '#651fff', halo: 'rgba(101, 31, 255, 0.72)' }, // Deep Violet
+   { core: '#ffffff', glow: '#e0f7fa', halo: 'rgba(224, 247, 250, 0.75)' }, // Frost White
+   { core: '#ffffff', glow: '#2979ff', halo: 'rgba(41, 121, 255, 0.78)' }   // Ice Sapphire
+  ],
+  mistletoe: [
+   { core: '#ffffff', glow: '#00e676', halo: 'rgba(0, 230, 118, 0.80)' },  // Pine Emerald
+   { core: '#ffffff', glow: '#ff1744', halo: 'rgba(255, 23, 68, 0.80)' },   // Holly Berry Red
+   { core: '#ffffff', glow: '#76ff03', halo: 'rgba(118, 255, 3, 0.72)' },   // Lime Sprout
+   { core: '#ffffff', glow: '#ffd600', halo: 'rgba(255, 214, 0, 0.78)' }   // Golden Bell
+  ]
+ };
+
+ function drawStemXmasLights(shape, length, spacing, index) {
+  const start = 10 * shape.scale;
+  const lightPalette = XMAS_PALETTES[state.xmasTheme] || XMAS_PALETTES.multicolor;
+
+  const lightSpacing = spacing * 2.4;
+  for (let distance = start; distance < length - 4 * shape.scale; distance += lightSpacing) {
+   const nodeIdx = Math.round(distance / spacing);
+   const colorIdx = (nodeIdx + index * 3) % lightPalette.length;
+   const col = lightPalette[colorIdx];
+
+   const pt = pointAt(shape, distance);
+
+   const side = ((nodeIdx + index) % 2 === 0 ? 1 : -1);
+   const lateralOffset = side * (3.5 + noise(nodeIdx * 19 + index * 31) * 3.5) * shape.scale;
+   const lx = pt.x + Math.cos(pt.angle) * lateralOffset;
+   const ly = pt.y + Math.sin(pt.angle) * lateralOffset;
+
+   let brightness = 1.0;
+   if (state.xmasMode === 'twinkle') {
+    const phase = state.wave * 1.7 + nodeIdx * 1.35 + index * 2.1;
+    brightness = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(phase), 1.6);
+   }
+
+   // Bigger, visible fairy light bulb
+   const bulbRadius = (2.7 + noise(nodeIdx * 7) * 0.7) * shape.scale;
+   const outerGlowRadius = bulbRadius * 6.0 * brightness;
+   const innerGlowRadius = bulbRadius * 2.6 * brightness;
+
+   context.save();
+
+   // 1. Wide soft atmospheric aura glow
+   const outerGrad = context.createRadialGradient(lx, ly, bulbRadius * 0.4, lx, ly, outerGlowRadius);
+   outerGrad.addColorStop(0, col.halo);
+   outerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+   context.fillStyle = outerGrad;
+   context.globalAlpha = state.opacity * brightness * 0.95;
+   context.beginPath();
+   context.arc(lx, ly, outerGlowRadius, 0, Math.PI * 2);
+   context.fill();
+
+   // 2. Intense bright inner glow
+   const innerGrad = context.createRadialGradient(lx, ly, bulbRadius * 0.2, lx, ly, innerGlowRadius);
+   innerGrad.addColorStop(0, col.glow);
+   innerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+   context.fillStyle = innerGrad;
+   context.globalAlpha = state.opacity * brightness;
+   context.beginPath();
+   context.arc(lx, ly, innerGlowRadius, 0, Math.PI * 2);
+   context.fill();
+
+   // 3. Glowing saturated bulb body
+   context.fillStyle = col.glow;
+   context.globalAlpha = state.opacity * Math.min(1.0, brightness * 1.1);
+   context.beginPath();
+   context.arc(lx, ly, bulbRadius, 0, Math.PI * 2);
+   context.fill();
+
+   // 4. Sparkling white-hot incandescent center
+   context.fillStyle = '#ffffff';
+   context.globalAlpha = state.opacity * Math.min(1.0, brightness * 1.35);
+   context.beginPath();
+   context.arc(lx - bulbRadius * 0.25, ly - bulbRadius * 0.25, bulbRadius * 0.48, 0, Math.PI * 2);
+   context.fill();
+
+   context.restore();
+  }
+ }
+
+ function drawBase() {
+  const view = scene();
+  context.save();
+  context.translate(view.baseX, view.bottom);
+  context.scale(view.scale, view.scale);
+
+  // NO OBLONG MOUND! Stems cleanly rest right on the taskbar line (y = 0)
+  const stemCount = state.stems || 4;
+  for (let stem = 0; stem < stemCount; stem++) {
+   const spreadOffset = (stem - (stemCount - 1) / 2) * 5;
+   context.beginPath();
+   context.moveTo(0, 0); // cleanly resting directly on the taskbar line
+   context.quadraticCurveTo(spreadOffset * 0.35, -4, spreadOffset, -14);
+   context.strokeStyle = stem % 2 ? '#486b2d' : '#395323';
+   context.lineWidth = 1.9;
+   context.lineCap = 'round';
+   context.stroke();
+  }
+
+  // Subtle natural botanical basal leaf whorls resting right at the taskbar line
+  context.fillStyle = '#426328bb';
+  for (let i = -2; i <= 2; i++) {
+   context.beginPath();
+   context.ellipse(i * 3.5, -0.8, 3.2, 1.1, i * 0.18, 0, Math.PI * 2);
+   context.fill();
+  }
+
+  context.restore();
+ }
+
+ function drawHornwortPearling(ctx, dt, hours) {
+  if (state.opacity === 0 || hornwortPearls.length === 0) return;
+  const view = scene();
+
+  // Draw subtle rising bubbles
+  for (let i = hornwortPearls.length - 1; i >= 0; i--) {
+   const b = hornwortPearls[i];
+   b.age += dt;
+   b.y += b.vy * dt;
+   // Straight vertical ascent with subtle whisper-thin wavy drift (no runaway accumulation)
+   b.x = b.baseX + Math.sin(b.age * b.wobbleSpeed + b.wobblePhase) * b.wobbleAmp;
+
+   if (b.y <= view.top || b.age >= b.lifespan - 0.5) {
+    b.alpha -= dt * 2.0;
+   }
+
+   if (b.alpha <= 0.02 || b.y < view.top - 15) {
+    hornwortPearls.splice(i, 1);
+    continue;
+   }
+
+   const a = clamp(b.alpha * state.opacity, 0, 1);
+   ctx.beginPath();
+   ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+   ctx.fillStyle = `rgba(220, 248, 255, ${a * 0.22})`;
+   ctx.fill();
+   ctx.lineWidth = 0.8;
+   ctx.strokeStyle = `rgba(238, 252, 255, ${a * 0.70})`;
+   ctx.stroke();
+
+   ctx.beginPath();
+   ctx.arc(b.x - b.radius * 0.32, b.y - b.radius * 0.32, Math.max(0.4, b.radius * 0.28), 0, Math.PI * 2);
+   ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.88})`;
+   ctx.fill();
+  }
+ }
+
+ function draw(dt = 0.016) {
+  context.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  context.clearRect(0, 0, state.width, state.height);
+  if (state.opacity === 0) return;
+
+  context.globalAlpha = state.opacity;
+  const hours = state.preview === null ? elapsedMs() / hour : state.preview;
+  for (let stem = state.stems - 1; stem >= 0; stem--) drawStem(stem, hours);
+  drawHornwortPearling(context, dt, hours);
+  drawBase();
+  context.globalAlpha = 1;
+ }
+
+ function updateUI() {
+  const hours = elapsedMs() / hour, totalSeconds = Math.floor(hours * 3600), seconds = totalSeconds % 60, minutes = Math.floor(totalSeconds / 60) % 60;
+  const ageEl = document.getElementById('age');
+  const spdText = state.speed && state.speed !== 1 ? ` · ${state.speed}x speed` : '';
+  if (ageEl) ageEl.textContent = `Growth age · ${String(Math.floor(hours)).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${spdText}${clock.paused ? ' · paused' : ''}`;
+  const shown = state.preview === null ? hours : state.preview;
+  const stageEl = document.getElementById('stage');
+  if (stageEl) stageEl.textContent = shown < 8 ? 'Growing up the right edge' : shown < 16 ? 'Growing left along the top' : 'Top edge filled · mature plant';
+  const prevVal = document.getElementById('preview-value');
+  if (prevVal) prevVal.textContent = state.preview === null ? 'Live' : `${state.preview.toFixed(2)} h`;
+  const prevNote = document.getElementById('preview-note');
+  if (prevNote) prevNote.hidden = state.preview === null;
+  if (state.preview === null) {
+   const prevSlider = document.getElementById('preview');
+   if (prevSlider) prevSlider.value = String(Math.min(16, hours));
+  }
+  const growthButton = document.getElementById('pause-growth');
+  if (growthButton) { growthButton.textContent = clock.paused ? 'Resume growth' : 'Pause growth'; growthButton.setAttribute('aria-pressed', String(clock.paused)); }
+  const currentButton = document.getElementById('pause-current');
+  if (currentButton) { currentButton.textContent = state.still ? 'Resume gentle water' : 'Still water'; currentButton.setAttribute('aria-pressed', String(state.still)); }
+  if (guide) {
+   guide.style.top = `${scene().bottom}px`;
+   guide.style.display = state.guide && !state.objectOnly ? 'block' : 'none';
+  }
+ }
+
+ /* ─── Smooth 60FPS Fluid Loop ────────────────────────────────── */
+ let animFrameId = null;
+ let lastTickTime = performance.now();
+
+ function loop(now) {
+  animFrameId = null;
+  if (document.hidden) return;
+
+  const dt = clamp((now - lastTickTime) / 1000, 0.001, 0.05);
+  lastTickTime = now;
+
+  if (!state.still) {
+   state.wave += dt;
+   updateWaterPhysics(dt);
+  }
+
+  if (Date.now() - state.lastSave >= 60000) save();
+  draw(dt);
+  if (!state.lastUIUpdate || now - state.lastUIUpdate >= 500) {
+   state.lastUIUpdate = now;
+   updateUI();
+  }
+
+  animFrameId = requestAnimationFrame(loop);
+ }
+
+ function startAnimation() {
+  if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+  lastTickTime = performance.now();
+  animFrameId = requestAnimationFrame(loop);
+ }
+
+ function measure() {
+  const bounds = canvas.getBoundingClientRect();
+  state.width = Math.max(1, bounds.width);
+  state.height = Math.max(1, bounds.height);
+  state.dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  canvas.width = Math.round(state.width * state.dpr);
+  canvas.height = Math.round(state.height * state.dpr);
+  draw();
+  updateUI();
+ }
+
+ function preview(hours) { state.preview = hours; draw(); updateUI(); }
+ function setBackground(enabled) {
+  state.background = enabled;
+  root.classList.toggle('transparent', enabled);
+  const button = document.getElementById('background');
+  if (button) { button.textContent = enabled ? 'Restore background' : 'Transparent background'; button.setAttribute('aria-pressed', String(enabled)); }
+ }
+ function setObjectOnly(enabled, focus = true) {
+  state.objectOnly = enabled;
+  root.classList.toggle('object-only', enabled);
+  updateUI();
+  if (focus) {
+   const target = (enabled && !root.classList.contains('no-controls')) ? document.getElementById('restore') : document.getElementById('hide');
+   if (target) target.focus();
+  }
+ }
+
+ readSaved();
+ buildTiles();
+
+ const settings = {
+  stems: { get: () => state.stems, apply: value => { state.stems = value; }, format: value => `${value}` },
+  fullness: { get: () => state.fullness * 100, apply: value => { state.fullness = value / 100; }, format: value => `${value}%` },
+  current: { get: () => state.current * 100, apply: value => { state.current = value / 100; }, format: value => `${value}%` },
+  base: { get: () => state.base, apply: value => { state.base = value; }, format: value => `${value} px` },
+  edge: { get: () => state.edge, apply: value => { state.edge = value; }, format: value => `${value} px` },
+  transparency: { get: () => Math.round((1 - state.opacity) * 100), apply: value => { state.opacity = 1 - value / 100; }, format: value => `${value}%` }
+ };
+
+ for (const [id, setting] of Object.entries(settings)) {
+  const input = document.getElementById(id);
+  if (!input) continue;
+  input.value = String(setting.get());
+  const output = document.getElementById(`${id}-value`);
+  if (output) output.textContent = setting.format(setting.get());
+  input.addEventListener(id === 'stems' ? 'change' : 'input', () => {
+   const parsed = Number(input.value);
+   if (!Number.isFinite(parsed)) return;
+   const value = id === 'stems' ? clamp(Math.round(parsed), 1, 6) : clamp(parsed, Number(input.min), Number(input.max));
+   setting.apply(value);
+   if (output) output.textContent = setting.format(value);
+   save(); draw(); updateUI();
+  });
+ }
+
+ const pauseGrowthBtn = document.getElementById('pause-growth');
+ if (pauseGrowthBtn) pauseGrowthBtn.addEventListener('click', () => {
+  const now = Date.now();
+  clock.elapsed = elapsedMs(now);
+  clock.anchor = now;
+  clock.paused = !clock.paused;
+  save(); updateUI();
+ });
+
+ const pauseCurrentBtn = document.getElementById('pause-current');
+ if (pauseCurrentBtn) pauseCurrentBtn.addEventListener('click', () => {
+  state.still = !state.still;
+  state.lastFrame = null;
+  updateUI();
+ });
+
+ const resetBtn = document.getElementById('reset');
+ if (resetBtn) resetBtn.addEventListener('click', () => {
+  if (!window.confirm('Restart this plant at one-third height? This replaces its saved growth age.')) return;
+  clock.elapsed = 0;
+  clock.anchor = Date.now();
+  clock.paused = false;
+  state.preview = null;
+  save(); draw(); updateUI();
+ });
+
+ const prevInput = document.getElementById('preview');
+ if (prevInput) prevInput.addEventListener('input', event => {
+  const value = Number(event.target.value);
+  if (Number.isFinite(value)) preview(clamp(value, 0, 16));
+ });
+
+ const prev8 = document.getElementById('preview-eight');
+ if (prev8) prev8.addEventListener('click', () => preview(8));
+ const prev16 = document.getElementById('preview-sixteen');
+ if (prev16) prev16.addEventListener('click', () => preview(16));
+ const liveBtn = document.getElementById('live');
+ if (liveBtn) liveBtn.addEventListener('click', () => preview(null));
+
+ const guideBtn = document.getElementById('guide');
+ if (guideBtn) guideBtn.addEventListener('click', () => {
+  state.guide = !state.guide;
+  guideBtn.textContent = state.guide ? 'Base guide: on' : 'Base guide: off';
+  guideBtn.setAttribute('aria-pressed', String(state.guide));
+  updateUI();
+ });
+
+ const bgBtn = document.getElementById('background');
+ if (bgBtn) bgBtn.addEventListener('click', () => setBackground(!state.background));
+ const hideBtn = document.getElementById('hide');
+ if (hideBtn) hideBtn.addEventListener('click', () => setObjectOnly(true));
+ const restoreBtn = document.getElementById('restore');
+ if (restoreBtn) restoreBtn.addEventListener('click', () => setObjectOnly(false));
+
+ document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && state.objectOnly) setObjectOnly(false);
+ });
+
+ const themeBtn = document.getElementById('theme');
+ if (themeBtn) themeBtn.addEventListener('click', () => {
+  const day = document.body.classList.toggle('day');
+  themeBtn.textContent = day ? 'Night backdrop' : 'Day backdrop';
+  themeBtn.setAttribute('aria-pressed', String(day));
+ });
+
+ const fullscreenBtn = document.getElementById('fullscreen');
+ if (fullscreenBtn) {
+  fullscreenBtn.addEventListener('click', () => {
+   if (!document.fullscreenElement) {
+    if (root.requestFullscreen) root.requestFullscreen();
+   } else {
+    if (document.exitFullscreen) document.exitFullscreen();
+   }
+  });
+ }
+
+ document.addEventListener('fullscreenchange', () => {
+  if (fullscreenBtn) {
+   fullscreenBtn.textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
+   fullscreenBtn.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement)));
+  }
+  measure();
+ });
+
+ document.addEventListener('visibilitychange', () => {
+  save();
+  if (document.hidden) {
+   if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+   animFrameId = null;
+  } else {
+   startAnimation();
+  }
+ });
+
+ window.addEventListener('pagehide', save);
+ window.addEventListener('resize', measure);
+
+ const onPref = event => {
+  state.still = event.matches;
+  updateUI();
+ };
+ if (typeof preference.addEventListener === 'function') preference.addEventListener('change', onPref);
+ else if (typeof preference.addListener === 'function') preference.addListener(onPref);
+
+ const parameters = new URLSearchParams(window.location.search);
+ for (const [id, setting] of Object.entries(settings)) {
+  if (!parameters.has(id)) continue;
+  const parsed = Number(parameters.get(id));
+  if (!Number.isFinite(parsed)) continue;
+  const input = document.getElementById(id);
+  const value = id === 'stems' ? clamp(Math.round(parsed), 1, 6) : clamp(parsed, Number(input.min), Number(input.max));
+  setting.apply(value);
+  if (input) input.value = String(value);
+  const output = document.getElementById(`${id}-value`);
+  if (output) output.textContent = setting.format(value);
+ }
+
+ if (parameters.has('count')) {
+  const c = Number(parameters.get('count'));
+  if (Number.isFinite(c)) state.stems = clamp(Math.round(c), 1, 6);
+ }
+ if (parameters.has('scale')) {
+  const s = Number(parameters.get('scale'));
+  if (Number.isFinite(s) && s > 0) state.userScale = s;
+ }
+ if (parameters.has('opacity')) {
+  const op = Number(parameters.get('opacity'));
+  if (Number.isFinite(op)) state.opacity = clamp(op, 0, 1);
+ }
+ if (parameters.has('transparency')) {
+  const tr = Number(parameters.get('transparency'));
+  if (Number.isFinite(tr)) state.opacity = clamp(1 - tr / 100, 0, 1);
+ }
+
+ if (parameters.get('controls') === '0') root.classList.add('no-controls');
+ if (parameters.get('background') === 'transparent') setBackground(true);
+ if (parameters.get('transparent') === '1') setObjectOnly(true, false);
+ if (parameters.get('motion') === 'off') state.still = true;
+    if (parameters.has('speed')) {
+    const sp = Number(parameters.get('speed'));
+    if (Number.isFinite(sp) && sp > 0) state.speed = clamp(sp, 1.0, 5.0);
+   }
+   if (parameters.has('growth_speed')) {
+    const sp = Number(parameters.get('growth_speed'));
+    if (Number.isFinite(sp) && sp > 0) state.speed = clamp(sp, 1.0, 5.0);
+   }
+   if (parameters.has('preview') && Number.isFinite(Number(parameters.get('preview')))) {
+    state.preview = clamp(Number(parameters.get('preview')), 0, 16);
+   }
+   if (parameters.get('xmas') === '1' || parameters.get('xmas_lights') === '1' || parameters.get('xmas_lights') === 'true') {
+    state.xmasLights = true;
+   }
+   if (parameters.has('xmas_mode')) {
+    state.xmasMode = parameters.get('xmas_mode');
+   }
+   if (parameters.has('xmas_theme') || parameters.has('xmas_palette')) {
+    const t = parameters.get('xmas_theme') || parameters.get('xmas_palette');
+    if (XMAS_PALETTES[t]) state.xmasTheme = t;
+   }
+
+  window.setXmasLights = function(enabled, mode, theme) {
+   state.xmasLights = !!enabled;
+   if (mode) state.xmasMode = mode;
+   if (theme && XMAS_PALETTES[theme]) state.xmasTheme = theme;
+   draw();
+  };
+
+ window.restartGrowth = function() {
+  clock.elapsed = 0;
+  clock.anchor = Date.now();
+  clock.paused = false;
+  state.preview = null;
+  save(); draw(); updateUI();
+ };
+ window.setGrowthSpeed = function(speedVal) {
+  let s = Number(speedVal);
+  if (!Number.isFinite(s) || s <= 0) return;
+  s = clamp(s, 1.0, 5.0);
+  const now = Date.now();
+  clock.elapsed = elapsedMs(now);
+  clock.anchor = now;
+  state.speed = s;
+  save(); draw(); updateUI();
+ };
+  window.setOpacity = function(op) {
+  state.opacity = clamp(Number(op), 0, 1);
+  draw(); updateUI();
+ };
+ window.setTransparency = function(pct) {
+  window.setOpacity(1 - Number(pct) / 100);
+ };
+ window.setScale = function(scaleVal) {
+  let s = Number(scaleVal);
+  if (!Number.isFinite(s) || s <= 0) return;
+  if (s > 10) s = s / 100;
+  state.userScale = s;
+  draw(); updateUI();
+ };
+ window.__onCursorMove = function(x, y) {
+  const now = performance.now();
+  if (pointer.lastTime > 0) {
+   const dt = Math.max(0.001, (now - pointer.lastTime) / 1000);
+   pointer.vx = clamp((x - pointer.lastX) / dt, -1500, 1500);
+   pointer.vy = clamp((y - pointer.lastY) / dt, -1500, 1500);
+  }
+  pointer.x = x;
+  pointer.y = y;
+  pointer.lastX = x;
+  pointer.lastY = y;
+  pointer.lastTime = now;
+  pointer.active = true;
+ };
+ window.__onCursorLeave = function() {
+  pointer.active = false;
+  pointer.vx = 0; pointer.vy = 0;
+ };
+
+ window._hornwort = { state, pointer, stemPhysics, clock, elapsedMs, geometry, visibleLength, pointAt, getActiveFishWakes: () => activeFishWakes, hornwortPearls, spawnHornwortBubble };
+
+ measure();
+  save();
+  startAnimation();
+})();
+</script>
+</body>
+</html>

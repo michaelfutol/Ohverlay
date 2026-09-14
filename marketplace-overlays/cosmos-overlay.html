@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Ohverlay — Living Cosmos</title>
+  <style>
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+    canvas{display:block;width:100%;height:100%;background:transparent;pointer-events:none}
+    #controls{position:fixed;z-index:3;left:18px;bottom:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;max-width:min(680px,calc(100vw - 36px));padding:10px 13px;border:1px solid #ffffff80;border-radius:12px;background:#fffdf9dc;box-shadow:0 8px 28px #4b2a1820;color:#5b3524;font:12px system-ui,sans-serif;backdrop-filter:blur(10px)}
+    #controls[hidden]{display:none}#controls label{display:flex;gap:7px;align-items:center}#size,#flowerSize{width:128px;accent-color:#d97706}#species{font:inherit;color:inherit;border:1px solid #dfc5b6;border-radius:7px;background:#fff;padding:4px 7px}output{min-width:42px}
+  </style>
+</head>
+<body>
+<div id="controls" hidden><label>Plant size <input id="size" type="range" min="50" max="200" value="100"><output id="sizeValue">100%</output></label><label>Flower <input id="flowerSize" type="range" min="96" max="288" step="4" value="192"><output id="flowerSizeValue">2.0 in</output></label><label>Species <select id="species"><option value="bipinnatus">Garden cosmos · pink mix</option><option value="sulphureus">Sulphur cosmos · yellow/orange</option></select></label></div>
+<canvas id="world" aria-label="A branching Cosmos plant with flowers and buds along the right edge"></canvas>
+<script>
+(() => {
+  'use strict';
+  const canvas=document.getElementById('world');
+  const ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
+  const sulphureusBloom=typeof Image==='undefined'?null:new Image();
+  if(sulphureusBloom)sulphureusBloom.src='assets/cosmos-sulphureus-flower.png';
+  const params=new URLSearchParams(location.search);
+  const TAU=Math.PI*2, CYCLE_MS=8*60*60*1000, STORE_KEY='ohverlay.cosmos.v1';
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+  const mix=(a,b,t)=>a+(b-a)*t;
+  const fract=n=>n-Math.floor(n);
+  const noise=n=>fract(Math.sin(n*91.713+17.31)*43758.5453);
+  const numberParam=(key,fallback,min,max)=>{
+    const value=Number(params.get(key));
+    return clamp(Number.isFinite(value)&&params.has(key)?value:fallback,min,max);
+  };
+  const state={
+    flowerSites:Math.round(numberParam('count',7,1,12)),
+    scale:numberParam('scale',1,.5,2.2),
+    flowerSizePx:numberParam('flowersize',192,96,288),
+    opacity:numberParam('opacity',.88,.1,1),
+    species:params.get('species')==='sulphureus'?'sulphureus':'bipinnatus',
+    start:Date.now(), pausedAt:0
+  };
+  // Documented Cosmos bipinnatus garden range, arranged deterministically so
+  // every patch contains light, mid-tone, and deep flowers rather than a noisy rainbow.
+  const FLOWER_PALETTES=[
+    {name:'pearl white',light:'#fffefa',mid:'#f4edf2',deep:'#c99aae',vein:'rgba(181,103,143,.22)'},
+    {name:'pale blush',light:'#ffe9f5',mid:'#f5b8da',deep:'#c75b98',vein:'rgba(152,54,111,.25)'},
+    {name:'shell pink',light:'#ffd4ed',mid:'#ee91c5',deep:'#a83e82',vein:'rgba(132,39,99,.28)'},
+    {name:'rose pink',light:'#ffb8e3',mid:'#df58ad',deep:'#85266f',vein:'rgba(102,23,80,.30)'},
+    {name:'deep magenta',light:'#f68bd2',mid:'#c51a93',deep:'#68105b',vein:'rgba(78,10,66,.34)'},
+    {name:'crimson',light:'#ed6ca1',mid:'#b71962',deep:'#5d123d',vein:'rgba(76,10,42,.34)'}
+  ];
+  const SULPHUREUS_PALETTES=[
+    {name:'lemon yellow',light:'#fff38a',mid:'#f4c928',deep:'#b16a0b',vein:'rgba(139,76,5,.28)'},
+    {name:'golden yellow',light:'#ffe46b',mid:'#f3ad16',deep:'#a95008',vein:'rgba(124,55,4,.30)'},
+    {name:'tangerine',light:'#ffc45a',mid:'#ef7414',deep:'#9a3009',vein:'rgba(111,38,5,.32)'},
+    {name:'deep orange',light:'#ffad45',mid:'#e95012',deep:'#84250c',vein:'rgba(96,25,6,.34)'},
+    {name:'scarlet orange',light:'#ff8d55',mid:'#d9361d',deep:'#741b19',vein:'rgba(83,18,16,.34)'}
+  ];
+  const flowerPalette=seed=>{const set=state.species==='sulphureus'?SULPHUREUS_PALETTES:FLOWER_PALETTES;return set[Math.abs(Math.round(seed))%set.length]};
+  try{
+    const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'null');
+    if(saved&&Number.isFinite(saved.start)) state.start=saved.start;
+    else localStorage.setItem(STORE_KEY,JSON.stringify({start:state.start}));
+  }catch(_){/* lifecycle continues for this session */}
+
+  let width=1,height=1,dpr=1,last=performance.now(),elapsed=0,raf=0;
+  const pointer={x:-9999,y:-9999,lastX:-9999,lastY:-9999,vx:0,vy:0,active:false,time:0};
+  // Root motion is inherited by every connected shoot; smaller branches also flex.
+  const physics=Array.from({length:state.flowerSites},()=>({bend:0,velocity:0}));
+
+  function resize(){
+    width=Math.max(1,innerWidth);height=Math.max(1,innerHeight);dpr=Math.min(devicePixelRatio||1,2);
+    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  addEventListener('resize',resize,{passive:true}); resize();
+
+  function movePointer(x,y){
+    const now=performance.now(),dt=pointer.time?clamp((now-pointer.time)/1000,.008,.08):.016;
+    if(pointer.active){pointer.vx=mix(pointer.vx,(x-pointer.lastX)/dt,.3);pointer.vy=mix(pointer.vy,(y-pointer.lastY)/dt,.3)}
+    pointer.x=x;pointer.y=y;pointer.lastX=x;pointer.lastY=y;pointer.time=now;pointer.active=true;
+  }
+  addEventListener('pointermove',e=>movePointer(e.clientX,e.clientY),{passive:true});
+  addEventListener('pointerleave',()=>pointer.active=false,{passive:true});
+  window.__onCursorMove=movePointer;
+  window.__onCursorLeave=()=>{pointer.active=false;pointer.vx=pointer.vy=0};
+  window.setOpacity=value=>state.opacity=clamp(Number(value)||0,0,1);
+  window.setScale=value=>state.scale=clamp(Number(value)||1,.5,2.2);
+  window.setFlowerSize=value=>state.flowerSizePx=clamp(Number(value)||192,96,288);
+  window.setCosmosSpecies=value=>{if(value==='bipinnatus'||value==='sulphureus')state.species=value};
+
+  function lifecycle(index){
+    // Offset heads across the shift so mature flowers, fading heads and new buds coexist.
+    const absoluteAge=Math.max(0,(Date.now()-state.start)/CYCLE_MS);
+    const age=(absoluteAge+index*.137)%1;
+    const bud=smooth((age-.08)/.16)*(1-smooth((age-.31)/.10));
+    const bloom=smooth((age-.20)/.15)*(1-smooth((age-.70)/.15));
+    const fade=smooth((age-.65)/.16)*(1-smooth((age-.88)/.08));
+    const seed=smooth((age-.78)/.13);
+    const successor=smooth((age-.72)/.18)*(1-smooth((age-.96)/.04));
+    return {age,bud,bloom,fade,seed,successor};
+  }
+
+  function curvePoint(segment,t){
+    const [a,b,c,d]=segment.points,u=1-t;
+    const dx=3*u*u*(b.x-a.x)+6*u*t*(c.x-b.x)+3*t*t*(d.x-c.x);
+    const dy=3*u*u*(b.y-a.y)+6*u*t*(c.y-b.y)+3*t*t*(d.y-c.y);
+    return {x:u*u*u*a.x+3*u*u*t*b.x+3*u*t*t*c.x+t*t*t*d.x,
+      y:u*u*u*a.y+3*u*u*t*b.y+3*u*t*t*c.y+t*t*t*d.y,angle:Math.atan2(dx,-dy)};
+  }
+
+  function buildPlant(){
+    const ground=numberParam('ground',height,0,height),s=state.scale;
+    const growth=.84+.16*smooth(Math.max(0,(Date.now()-state.start)/CYCLE_MS));
+    const heightFit=Math.min(620,ground*.95)*s*growth;
+    const screenFlowerDiameter=Math.min(state.flowerSizePx,Math.min(width,height)*.38);
+    const bloomRadius=screenFlowerDiameter*.5+8;
+    const fit=Math.min(1,Math.max(1,ground-35-bloomRadius)/Math.max(1,heightFit),width/Math.max(1,450*s));
+    const length=Math.max(1,heightFit*fit),unit=s*fit;
+    // Reserve space for the right-hand canopy and the full spring excursion.
+    // This anchor depends on viewport/size, never the current sway, so motion
+    // cannot slide the root around or push terminal flowers off the right edge.
+    const root={x:width-length*.43-40*unit,y:ground+5*unit};
+    const wind=Math.sin(elapsed*.00055)*.008+Math.sin(elapsed*.0011)*.004;
+    const rootAngle=-.11+wind+physics[0].bend;
+    const tip={x:root.x+Math.sin(rootAngle)*length,y:root.y-Math.cos(rootAngle)*length};
+    const segments=[{id:'trunk',parentId:null,attachT:0,kind:'trunk',length,unit,depth:1,index:0,
+      points:[root,{x:root.x,y:root.y-length*.32},
+        {x:tip.x+length*.035,y:tip.y+length*.34},tip]}];
+
+    function branch(parent,attachT,branchLength,angleOffset,index,kind){
+      const joint=curvePoint(parent,attachT),angle=joint.angle+angleOffset+physics[index].bend;
+      const riseAngle=angle*.65,tip={x:joint.x+Math.sin(angle)*branchLength,y:joint.y-Math.cos(angle)*branchLength};
+      const segment={id:'branch-'+index,parentId:parent.id,attachT,kind,length:branchLength,unit,
+        depth:.82+.16*noise(index+15),index,points:[{x:joint.x,y:joint.y},
+          {x:joint.x+Math.sin(angle)*branchLength*.35,y:joint.y-Math.cos(angle)*branchLength*.35},
+          {x:tip.x-Math.sin(riseAngle)*branchLength*.26,y:tip.y+Math.cos(riseAngle)*branchLength*.26},tip]};
+      segments.push(segment);return segment;
+    }
+    // Most flower stalks fork from three leafy nodes on ONE main stem. Further
+    // flower sites fork from those side shoots instead of starting at the ground.
+    const primaryCount=Math.min(state.flowerSites-1,6);
+    for(let i=1;i<=primaryCount;i++){
+      const level=Math.floor((i-1)/2),side=i%2?-1:1;
+      const attachT=.27+level*.19;
+      const branchLength=length*(.57-level*.10)*(side<0?1:.76);
+      branch(segments[0],attachT,branchLength,side*(.75-level*.035),i,'shoot');
+    }
+    for(let i=primaryCount+1;i<state.flowerSites;i++){
+      const parent=segments[1+(i-primaryCount-1)%primaryCount];
+      branch(parent,.48+.04*noise(i),parent.length*.52,(i%2?-.4:.45),i,'fork');
+    }
+    // Keep the broad mature petals inside the desktop edge while preserving
+    // the right-side placement and the connected geometry of the plant.
+    const allPoints=segments.flatMap(segment=>segment.points);
+    let minX=Math.min(...allPoints.map(point=>point.x)),maxX=Math.max(...allPoints.map(point=>point.x));
+    const horizontalFit=Math.min(1,Math.max(1,width-2*bloomRadius)/Math.max(1,maxX-minX));
+    for(const point of allPoints)point.x=root.x+(point.x-root.x)*horizontalFit;
+    maxX=Math.max(...allPoints.map(point=>point.x));
+    const shiftX=width-bloomRadius-maxX;
+    for(const point of allPoints)point.x+=shiftX;
+    // Large heads need a little more sky clearance on short displays. Compress
+    // and lift the connected stems together, then keep a short basal stem
+    // joined to the taskbar horizon when the plant was lifted.
+    let minTipY=Math.min(...segments.map(segment=>segment.points[3].y));
+    let maxTipY=Math.max(...segments.map(segment=>segment.points[3].y));
+    const verticalFit=Math.min(1,Math.max(1,ground-2*bloomRadius)/Math.max(1,maxTipY-minTipY));
+    for(const point of allPoints)point.y=ground+(point.y-ground)*verticalFit;
+    maxTipY=Math.max(...segments.map(segment=>segment.points[3].y));
+    const shiftY=Math.max(0,maxTipY-(ground-bloomRadius));
+    for(const point of allPoints)point.y-=shiftY;
+    const heads=segments.map(segment=>{
+      const p=curvePoint(segment,1),life=lifecycle(segment.index);
+      return {id:'head-'+segment.index,segmentId:segment.id,x:p.x,y:p.y,angle:p.angle,
+        stage:life.bloom>.015?'flower':life.seed>.05?'spent':'bud',life,segment};
+    });
+    return {rootCount:1,ground,bloomRadius,flowerSizePx:state.flowerSizePx,segments,heads};
+  }
+
+  function updatePhysics(dt){
+    pointer.vx*=Math.pow(.82,dt*60);pointer.vy*=Math.pow(.82,dt*60);
+    const scene=buildPlant();
+    for(let i=0;i<physics.length;i++){
+      const p=physics[i],segment=scene.segments[i];
+      if(pointer.active){
+        let nearest=null;
+        for(const t of [.25,.5,.75,1]){
+          const point=curvePoint(segment,t),dx=point.x-pointer.x,dist=Math.hypot(dx,point.y-pointer.y);
+          if(!nearest||dist<nearest.dist)nearest={dx,dist};
+        }
+        if(nearest.dist<100*segment.unit){
+          const proximity=Math.pow(1-nearest.dist/(100*segment.unit),2);
+          const cursorPush=clamp(pointer.vx*.000045,-.055,.055);
+          const force=(cursorPush+(nearest.dx>=0?1:-1)*.018)*proximity*dt*60;
+          p.velocity+=force;
+          if(i>0)physics[0].velocity+=force*.16;
+        }
+      }
+      p.velocity+=(-p.bend*(i?15:10)-p.velocity*5.6)*dt;
+      p.bend=clamp(p.bend+p.velocity*dt,-.15,.15);
+    }
+  }
+
+  function traceStem(segment){
+    const thickness=segment.kind==='trunk'?4.2:segment.kind==='shoot'?2.4:1.5;
+    ctx.lineCap='round';ctx.globalAlpha=state.opacity*segment.depth;
+    for(let n=0;n<24;n++){
+      const a=curvePoint(segment,n/24),b=curvePoint(segment,(n+1)/24);
+      ctx.lineWidth=mix(thickness,.75,n/24)*segment.unit;
+      ctx.strokeStyle='rgba(80,125,46,.94)';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    const [a,b,c,d]=segment.points;
+    ctx.lineWidth=.45*segment.unit;ctx.strokeStyle='rgba(208,226,127,.44)';
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.bezierCurveTo(b.x,b.y,c.x,c.y,d.x,d.y);ctx.stroke();
+    if(segment.parentId){
+      ctx.fillStyle='rgba(90,135,52,.95)';ctx.beginPath();ctx.ellipse(a.x,a.y,2.4*segment.unit,3.4*segment.unit,-.15,0,TAU);ctx.fill();
+    }
+  }
+
+  function traceLeaflet(x,y,angle,length){
+    const ex=x+Math.cos(angle)*length,ey=y+Math.sin(angle)*length;
+    const nx=-Math.sin(angle)*length*.038,ny=Math.cos(angle)*length*.038;
+    ctx.moveTo(x,y);ctx.quadraticCurveTo((x+ex)*.5+nx,(y+ey)*.5+ny,ex,ey);
+  }
+
+  function drawLanceolateLeaflet(x,y,angle,length,widthLeaf){
+    ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+    const leafGradient=ctx.createLinearGradient(0,-widthLeaf,length,widthLeaf);
+    leafGradient.addColorStop(0,'rgba(62,122,43,.88)');leafGradient.addColorStop(.48,'rgba(111,174,62,.94)');leafGradient.addColorStop(1,'rgba(72,134,43,.90)');
+    ctx.fillStyle=leafGradient;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(length*.24,-widthLeaf,length*.70,-widthLeaf*.76,length,0);ctx.bezierCurveTo(length*.67,widthLeaf*.72,length*.22,widthLeaf,0,0);ctx.fill();
+    ctx.strokeStyle='rgba(195,221,135,.28)';ctx.lineWidth=.32*state.scale;ctx.beginPath();ctx.moveTo(1,0);ctx.lineTo(length*.90,0);ctx.stroke();ctx.restore();
+  }
+
+  function drawLeaf(segment,t,side,seed){
+    const p=curvePoint(segment,t);
+    const baseAngle=p.angle-Math.PI*.5+side*(.82+noise(seed)*.20);
+    const size=(66+noise(seed+3)*32)*segment.unit*(segment.kind==='trunk'?1:.70)*(1-t*.20);
+    ctx.save();ctx.globalAlpha=state.opacity*(.62+.22*segment.depth);
+    ctx.strokeStyle='rgba(73,112,55,.86)';ctx.lineWidth=.72*state.scale;ctx.beginPath();ctx.moveTo(p.x,p.y);
+    ctx.lineTo(p.x+Math.cos(baseAngle)*size*.48,p.y+Math.sin(baseAngle)*size*.48);ctx.stroke();
+    const bx=p.x+Math.cos(baseAngle)*size*.13,by=p.y+Math.sin(baseAngle)*size*.13;
+    if(state.species==='sulphureus'){
+      // Reference morphology: a branching compound blade with many solid,
+      // pointed lanceolate lobes. It remains airy, but is broader than the
+      // hairlike bipinnate foliage of garden cosmos.
+      ctx.strokeStyle='rgba(67,125,45,.88)';ctx.lineWidth=.72*state.scale;ctx.beginPath();ctx.moveTo(p.x,p.y);
+      const rachisEndX=p.x+Math.cos(baseAngle)*size*.84,rachisEndY=p.y+Math.sin(baseAngle)*size*.84;ctx.lineTo(rachisEndX,rachisEndY);ctx.stroke();
+      for(let j=0;j<4;j++){
+        const along=.18+j*.15,cx=p.x+Math.cos(baseAngle)*size*along,cy=p.y+Math.sin(baseAngle)*size*along;
+        for(const branchSide of [-1,1]){
+          const branchAngle=baseAngle+branchSide*(.48+j*.035),branchLen=size*(.37-j*.035);
+          ctx.strokeStyle='rgba(72,132,46,.86)';ctx.lineWidth=.52*state.scale;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(branchAngle)*branchLen,cy+Math.sin(branchAngle)*branchLen);ctx.stroke();
+          for(let k=1;k<=3;k++){
+            const q=k/3,qx=cx+Math.cos(branchAngle)*branchLen*q,qy=cy+Math.sin(branchAngle)*branchLen*q;
+            const leafletAngle=branchAngle+branchSide*(.28-k*.045),leafletLength=size*(.19-k*.012);
+            drawLanceolateLeaflet(qx,qy,leafletAngle,leafletLength,Math.max(1.05,1.75*state.scale));
+          }
+          drawLanceolateLeaflet(cx+Math.cos(branchAngle)*branchLen,cy+Math.sin(branchAngle)*branchLen,branchAngle,size*.17,Math.max(1.05,1.6*state.scale));
+        }
+      }
+      drawLanceolateLeaflet(rachisEndX,rachisEndY,baseAngle,size*.23,Math.max(1.15,1.9*state.scale));
+      ctx.restore();return;
+    }
+    ctx.strokeStyle='rgba(75,135,54,.88)';ctx.lineWidth=.58*state.scale;ctx.lineCap='round';ctx.beginPath();
+    for(let j=0;j<5;j++){
+      const along=.11+j*.067;
+      for(const branchSide of [-1,1]){
+        const px=p.x+Math.cos(baseAngle)*size*along,py=p.y+Math.sin(baseAngle)*size*along;
+        const branchAngle=baseAngle+branchSide*(.50+.09*noise(seed+j*11));
+        const branchLen=size*(.31-j*.023);
+        traceLeaflet(px,py,branchAngle,branchLen);
+        for(let k=1;k<=3;k++){
+          const qx=px+Math.cos(branchAngle)*branchLen*k/4,qy=py+Math.sin(branchAngle)*branchLen*k/4;
+          traceLeaflet(qx,qy,branchAngle+branchSide*(.48+k*.065),branchLen*(.34-k*.03));
+          traceLeaflet(qx,qy,branchAngle-branchSide*(.43+k*.055),branchLen*(.31-k*.027));
+        }
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function petalPath(radius,width,ruffle,fold){
+    ctx.beginPath();ctx.moveTo(0,-2);
+    ctx.bezierCurveTo(-width*.45,-radius*.20,-width*.64,-radius*.62,-width*.40,-radius*.88);
+    // Three shallow apical lobes reproduce the gently toothed ray florets in
+    // the supplied white Cosmos reference rather than a generic oval petal.
+    ctx.quadraticCurveTo(-width*.31-ruffle*.18,-radius*1.01,-width*.20,-radius*.965);
+    ctx.quadraticCurveTo(-width*.09-ruffle*.12,-radius*.93,0,-radius*(1.02+fold));
+    ctx.quadraticCurveTo(width*.09+ruffle*.12,-radius*.93,width*.20,-radius*.965);
+    ctx.quadraticCurveTo(width*.31+ruffle*.18,-radius*1.01,width*.40,-radius*.88);
+    ctx.bezierCurveTo(width*.59,-radius*.62,width*.43,-radius*.21,0,-2);ctx.closePath();
+  }
+
+  function drawBud(x,y,rotation,size,open,alpha,seed,bloomScale=1){
+    const palette=flowerPalette(seed);ctx.save();ctx.translate(x,y);ctx.rotate(rotation);
+    const shapeScale=size*(open>=.2?bloomScale*open:1);ctx.scale(shapeScale,shapeScale*(.74+.26*noise(seed+81)));ctx.globalAlpha=state.opacity*alpha;
+    if(open<.2){
+      const g=ctx.createRadialGradient(-2,-5,1,0,-3,10);g.addColorStop(0,palette.light);g.addColorStop(.38,palette.mid);g.addColorStop(.72,'#94a94d');g.addColorStop(1,'#456239');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,-4,7.2,0,TAU);ctx.fill();
+      ctx.strokeStyle='rgba(51,101,43,.94)';ctx.lineWidth=1.05;
+      for(let k=0;k<10;k++){ctx.save();ctx.rotate(k*TAU/10);ctx.beginPath();ctx.moveTo(0,3);ctx.quadraticCurveTo(1.5,-3,0,-12.5);ctx.stroke();ctx.restore()}
+    }else{
+      for(let k=0;k<8;k++){
+        ctx.save();ctx.rotate(k*TAU/8+(noise(seed+k)-.5)*.055);
+        const speciesScale=state.species==='sulphureus' ? .86 : 1,r=state.species==='sulphureus'?24*speciesScale*(.74+.26*open):27*(.74+.26*open),wid=state.species==='sulphureus'?13*speciesScale*(.75+.25*open):15*(.75+.25*open);
+        const gradient=ctx.createLinearGradient(-wid,-r,wid,0);
+        gradient.addColorStop(0,palette.deep);gradient.addColorStop(.34,palette.light);gradient.addColorStop(.64,palette.mid);gradient.addColorStop(1,palette.deep);
+        ctx.fillStyle=gradient;petalPath(r,wid,(noise(seed+k*17)-.5)*2,.018*Math.sin(seed+k));ctx.fill();
+        ctx.strokeStyle=palette.vein;ctx.lineWidth=.45;
+        for(let vein=-3;vein<=3;vein++){ctx.beginPath();ctx.moveTo(vein*.55,-2);ctx.quadraticCurveTo(vein*1.15,-r*.50,vein*1.75,-r*.89);ctx.stroke()}
+        ctx.restore();
+      }
+      const disc=ctx.createRadialGradient(-1.2,-1.2,.7,0,0,5.2);disc.addColorStop(0,'#fff079');disc.addColorStop(.38,'#e9bc22');disc.addColorStop(.78,'#b9780d');disc.addColorStop(1,'#654816');
+      ctx.fillStyle=disc;ctx.beginPath();ctx.arc(0,0,4.9,0,TAU);ctx.fill();
+      for(let k=0;k<47;k++){
+        const a=k*2.39996,r=Math.sqrt(k/47)*4.4,px=Math.cos(a)*r,py=Math.sin(a)*r;
+        ctx.fillStyle=k%5?'#f4ca31':'#7f5311';ctx.beginPath();ctx.arc(px,py,.47+(k%3)*.08,0,TAU);ctx.fill();
+        if(k%6===0){ctx.strokeStyle='rgba(255,240,91,.82)';ctx.lineWidth=.28;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+Math.cos(a)*1.2,py+Math.sin(a)*1.2);ctx.stroke()}
+      }
+      // Green involucre behind the head remains visible between the rays.
+      ctx.globalCompositeOperation='destination-over';ctx.strokeStyle='rgba(50,91,40,.88)';ctx.lineWidth=1.25;
+      for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*TAU/8);ctx.beginPath();ctx.moveTo(0,2);ctx.lineTo(0,-13);ctx.stroke();ctx.restore()}
+    }
+    ctx.restore();
+  }
+
+  function drawFallingPetals(x,y,rotation,life,seed){
+    // A few ray florets loosen one at a time during senescence; no shower of petals.
+    for(let petal=0;petal<3;petal++){
+      const start=.735+petal*.024,duration=.034,progress=(life.age-start)/duration;
+      if(progress<=0||progress>=1)continue;
+      const t=smooth(progress),phase=petal*2.18+seed*.037;
+      const angle=phase+rotation,fall=state.flowerSizePx*.72*t;
+      const startX=x+Math.cos(angle)*state.flowerSizePx*.24,startY=y+Math.sin(angle)*state.flowerSizePx*.24;
+      const px=startX+Math.sin(t*2.1+phase)*state.flowerSizePx*.085,py=startY+fall;
+      const palette=flowerPalette(seed+petal*13);
+      ctx.save();ctx.translate(px,py);ctx.rotate(angle+Math.PI*.5+t*.45);
+      ctx.globalAlpha=state.opacity*(1-t)*.88;
+      const length=state.flowerSizePx*.115,width=state.flowerSizePx*.027;
+      const gradient=ctx.createLinearGradient(-width,-length,width,0);
+      gradient.addColorStop(0,palette.mid);gradient.addColorStop(.56,palette.light);gradient.addColorStop(1,palette.deep);
+      ctx.fillStyle=gradient;ctx.beginPath();ctx.moveTo(0,0);
+      ctx.quadraticCurveTo(width,-length*.34,width*.72,-length*.78);
+      ctx.quadraticCurveTo(width*.18,-length,0,-length);
+      ctx.quadraticCurveTo(-width*.18,-length,-width*.72,-length*.78);
+      ctx.quadraticCurveTo(-width,-length*.34,0,0);ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawSulphureusBloom(x,y,rotation,diameter,alpha){
+    if(!sulphureusBloom||!sulphureusBloom.complete||!sulphureusBloom.naturalWidth)return false;
+    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.globalAlpha=state.opacity*alpha;
+    // The isolated sprite retains the photo-referenced orange petal detail;
+    // the transparent padding keeps its center on the branch tip as it opens.
+    ctx.drawImage(sulphureusBloom,-diameter*.5,-diameter*.5,diameter,diameter);
+    ctx.restore();return true;
+  }
+
+  function drawSpentHead(x,y,rotation,size,amount,alpha){
+    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(size,size);ctx.globalAlpha=state.opacity*alpha;
+    ctx.fillStyle='rgba(105,76,35,.92)';ctx.beginPath();ctx.ellipse(0,0,6.5,5.2,0,0,TAU);ctx.fill();
+    ctx.strokeStyle='rgba(87,69,34,.86)';ctx.lineWidth=.8;
+    for(let k=0;k<22;k++){const a=k*TAU/22,len=5+amount*7;ctx.beginPath();ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3);ctx.lineTo(Math.cos(a)*len,Math.sin(a)*len);ctx.stroke()}
+    ctx.restore();
+  }
+
+  function drawPlant(){
+    const scene=buildPlant();
+    ctx.save();ctx.beginPath();ctx.rect(0,0,width,scene.ground);ctx.clip();
+    // Paint the connected skeleton before any foliage or heads so the leaf
+    // axils visibly join the main stem, and long bare peduncles reach the blooms.
+    for(const segment of scene.segments)traceStem(segment);
+    const root=scene.segments[0].points[0];
+    if(root.y<scene.ground){ctx.globalAlpha=state.opacity;ctx.strokeStyle='rgba(80,125,46,.94)';ctx.lineWidth=2.8*scene.segments[0].unit;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(root.x,root.y);ctx.lineTo(root.x,scene.ground);ctx.stroke()}
+    for(const segment of scene.segments){
+      const nodes=segment.kind==='trunk'?[.13,.27,.46,.65,.80]:segment.kind==='shoot'?[.20,.45]:[.25];
+      for(const [node,t] of nodes.entries())for(const side of [-1,1])
+        drawLeaf(segment,t,side,segment.index*101+node*11+(side>0?37:0));
+    }
+    for(const head of scene.heads){
+      const i=head.segment.index,segment=head.segment,life=head.life,tip=head;
+      const headRotation=head.angle*.26+Math.sin(elapsed*.0007+i)*.018;
+      const headSize=segment.unit*(.98+.16*noise(i*17));
+      if(life.bloom>.015){
+        const open=smooth(life.bloom/.55),droop=life.fade*.34;
+        const diameter=Math.min(state.flowerSizePx,Math.min(width,height)*.38);
+        const speciesScale=state.species==='sulphureus'?1/.86:1;
+        const bloomScale=diameter/(54*headSize)*speciesScale;
+        const drawnPhotoBloom=state.species==='sulphureus'&&drawSulphureusBloom(tip.x,tip.y,headRotation+droop,diameter*open,1-life.fade*.72);
+        if(!drawnPhotoBloom)drawBud(tip.x,tip.y,headRotation+droop,headSize,open,1-life.fade*.72,i*31,bloomScale);
+        drawFallingPetals(tip.x,tip.y,headRotation,life,i*31);
+      }else if(life.seed>.05){
+        drawSpentHead(tip.x,tip.y,headRotation+.18,headSize,life.seed,.75);
+      }else{
+        drawBud(tip.x,tip.y,headRotation,headSize,.06+life.bud*.13,.58+life.bud*.42,i*31);
+      }
+      // Successor bud emerges from the upper opposite node before the old head is gone.
+      if(life.successor>.03){
+        const junction=curvePoint(segment,.68),side=i%2?1:-1,branchLen=segment.length*.18*life.successor;
+        const a=junction.angle+side*.65;
+        const bx=junction.x+Math.sin(a)*branchLen,by=junction.y-Math.cos(a)*branchLen;
+        ctx.globalAlpha=state.opacity*segment.depth;ctx.strokeStyle='rgba(72,108,51,.86)';ctx.lineWidth=1.05*segment.unit;
+        ctx.beginPath();ctx.moveTo(junction.x,junction.y);ctx.quadraticCurveTo(mix(junction.x,bx,.45)+side*8,junction.y-branchLen*.35,bx,by);ctx.stroke();
+        drawBud(bx,by,a,headSize*(.6+.18*life.successor),.04+.07*life.successor,.8,i*43+7);
+      }
+    }
+    ctx.restore();ctx.globalAlpha=1;
+  }
+
+  function frame(now){
+    const dt=Math.min(.04,Math.max(0,(now-last)/1000));last=now;elapsed+=dt*1000;
+    updatePhysics(dt);ctx.clearRect(0,0,width,height);drawPlant();
+    raf=requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange',()=>{
+    cancelAnimationFrame(raf);last=performance.now();if(!document.hidden)raf=requestAnimationFrame(frame);
+  });
+  const controls=document.getElementById('controls'),sizeInput=document.getElementById('size'),sizeValue=document.getElementById('sizeValue'),flowerSizeInput=document.getElementById('flowerSize'),flowerSizeValue=document.getElementById('flowerSizeValue'),speciesInput=document.getElementById('species');
+  if(params.get('controls')==='1'){
+    controls.hidden=false;sizeInput.value=String(Math.round(state.scale*100));sizeValue.textContent=`${sizeInput.value}%`;
+    flowerSizeInput.value=String(state.flowerSizePx);flowerSizeValue.textContent=`${(state.flowerSizePx/96).toFixed(1)} in`;speciesInput.value=state.species;
+    sizeInput.addEventListener('input',()=>{window.setScale(Number(sizeInput.value)/100);sizeValue.textContent=`${sizeInput.value}%`});
+    flowerSizeInput.addEventListener('input',()=>{window.setFlowerSize(Number(flowerSizeInput.value));flowerSizeValue.textContent=`${(state.flowerSizePx/96).toFixed(1)} in`});
+    speciesInput.addEventListener('change',()=>window.setCosmosSpecies(speciesInput.value));
+  }
+  window._cosmos={state,lifecycle,physics,snapshot:buildPlant,restart(){state.start=Date.now();try{localStorage.setItem(STORE_KEY,JSON.stringify({start:state.start}))}catch(_){}}};
+  raf=requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

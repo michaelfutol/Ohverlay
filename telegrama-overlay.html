@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ohverlay · Telegrama · Caring Dispatch</title>
+<style>
+  :root {
+    --parchment: #fbf6ec;
+    --parchment-deep: #f2e9d4;
+    --crease: #ded0b4;
+    --ink: #2b261f;
+    --muted-ink: #6d6252;
+    --accent-red: #c0392b;
+    --airmail-blue: #2980b9;
+    --wax-red: #a93226;
+    --gold: #d4ac0d;
+    --shadow: rgba(30, 20, 10, 0.28);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Courier New", Courier, monospace, serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Container positioned at bottom-right corner */
+  .stage {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    perspective: 1400px;
+    z-index: 1000;
+    pointer-events: auto;
+  }
+
+  /* ─── Envelope / Folded Card Outer ─── */
+  .telegrama-card {
+    position: relative;
+    width: 380px;
+    background: var(--parchment);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px var(--shadow), 0 4px 12px rgba(0,0,0,0.12);
+    border: 1px solid var(--crease);
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s ease;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  /* Airmail border decoration */
+  .airmail-stripe {
+    height: 9px;
+    width: 100%;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--accent-red) 0,
+      var(--accent-red) 14px,
+      transparent 14px,
+      transparent 22px,
+      var(--airmail-blue) 22px,
+      var(--airmail-blue) 36px,
+      transparent 36px,
+      transparent 44px
+    );
+    opacity: 0.85;
+  }
+
+  /* ─── Sealed / Compact Envelope Preview ─── */
+  .envelope-front {
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+  }
+
+  .envelope-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .postmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1.5px dashed var(--muted-ink);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted-ink);
+    font-weight: 700;
+  }
+
+  .postmark .star {
+    color: var(--accent-red);
+  }
+
+  .stamp {
+    width: 42px;
+    height: 48px;
+    background: #fffdf9;
+    border: 1.5px dotted var(--crease);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 1px 2px 4px rgba(0,0,0,0.08);
+    transform: rotate(3deg);
+  }
+
+  .stamp-icon { font-size: 18px; }
+  .stamp-val { font-size: 8px; font-weight: 800; color: var(--accent-red); margin-top: 2px; }
+
+  .telegrama-teaser {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  .wax-seal {
+    width: 36px;
+    height: 36px;
+    background: radial-gradient(circle at 35% 35%, #d9534f, var(--wax-red));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    box-shadow: 0 4px 10px rgba(169, 50, 38, 0.4), inset 0 2px 3px rgba(255,255,255,0.4);
+    animation: seal-pulse 2.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes seal-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 4px 10px rgba(169, 50, 38, 0.4); }
+    50% { transform: scale(1.08); box-shadow: 0 6px 16px rgba(169, 50, 38, 0.65); }
+  }
+
+  .teaser-text {
+    flex: 1;
+  }
+
+  .teaser-from {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted-ink);
+    font-weight: 700;
+  }
+
+  .teaser-msg {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .click-prompt {
+    font-size: 10px;
+    color: var(--muted-ink);
+    text-align: right;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ─── Unfolded / Full Card View ─── */
+  .card-expanded {
+    display: none;
+    padding: 22px 24px 20px;
+    background: var(--parchment);
+    position: relative;
+    cursor: default;
+  }
+
+  .telegrama-card.opened {
+    width: 440px;
+  }
+
+  .telegrama-card.opened .envelope-front {
+    display: none;
+  }
+
+  .telegrama-card.opened .card-expanded {
+    display: block;
+    animation: unfold-paper 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes unfold-paper {
+    0% {
+      opacity: 0;
+      transform: translateY(18px) scaleY(0.92);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+  }
+
+  .dispatch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1.5px solid var(--crease);
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+
+  .dispatch-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-red);
+  }
+
+  .dispatch-meta {
+    font-size: 10px;
+    color: var(--muted-ink);
+    margin-top: 2px;
+    font-family: monospace;
+  }
+
+  .close-btn {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: var(--muted-ink);
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .close-btn:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
+
+  /* Message Paper Body */
+  .message-body {
+    background: #fffefb;
+    border: 1px dashed var(--crease);
+    border-radius: 6px;
+    padding: 16px 18px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    font-family: Georgia, Cambria, "Times New Roman", serif;
+    font-style: italic;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+    min-height: 60px;
+    position: relative;
+  }
+
+  .message-sender {
+    margin-top: 10px;
+    font-family: -apple-system, sans-serif;
+    font-style: normal;
+    font-size: 11px;
+    color: var(--muted-ink);
+    text-align: right;
+    font-weight: 600;
+  }
+
+  /* 2-Way Quick Reply Section */
+  .reply-section {
+    margin-top: 16px;
+    border-top: 1px solid var(--crease);
+    padding-top: 12px;
+  }
+
+  .reply-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted-ink);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .reply-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .reply-chip {
+    background: #ffffff;
+    border: 1px solid var(--crease);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .reply-chip:hover {
+    border-color: var(--accent-red);
+    background: #fff8f7;
+    transform: translateY(-1px);
+  }
+
+  .reply-chip:active {
+    transform: translateY(0);
+  }
+
+  .reply-status {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #27ae60;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Auto-dismiss progress timer bar */
+  .fade-timer-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent-red);
+    width: 100%;
+    transform-origin: left;
+    transition: transform linear;
+  }
+
+  /* Hidden state when no active dispatch */
+  .stage.hidden {
+    display: none;
+  }
+
+  /* Test / Controls Bar (only shown when requested) */
+  .debug-bar {
+    position: fixed;
+    bottom: 8px;
+    left: 12px;
+    background: rgba(20, 28, 22, 0.88);
+    color: #e0ead6;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(8px);
+    z-index: 999;
+  }
+
+  .debug-bar button {
+    background: #416b35;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .debug-bar button:hover { background: #558746; }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="telegrama-card" id="telegramaCard">
+    <div class="airmail-stripe"></div>
+
+    <!-- ─── Sealed Compact Card State ─── -->
+    <div class="envelope-front" id="envelopeFront">
+      <div class="envelope-header">
+        <div class="postmark">
+          <span class="star">★</span> OHVERLAY DISPATCH · TELEGRAMA
+        </div>
+        <div class="stamp">
+          <span class="stamp-icon" id="stampIcon">💌</span>
+          <span class="stamp-val" id="stampVal">PH · 2026</span>
+        </div>
+      </div>
+
+      <div class="telegrama-teaser">
+        <div class="wax-seal" id="sealIcon">❤️</div>
+        <div class="teaser-text">
+          <div class="teaser-from" id="teaserFrom">Mahal Ko</div>
+          <div class="teaser-msg" id="teaserMsg">May bagong telegrama para sa iyo...</div>
+        </div>
+      </div>
+
+      <div class="click-prompt">I-click upang buksan ✉️</div>
+    </div>
+
+    <!-- ─── Unfolded Full Card View ─── -->
+    <div class="card-expanded" id="cardExpanded">
+      <div class="dispatch-header">
+        <div>
+          <div class="dispatch-title" id="dispatchTitle">CABLEGRAMA NG PAGMAMAHAL</div>
+          <div class="dispatch-meta" id="dispatchMeta">DISPATCH #8812 · MANILA TO OVERSEAS</div>
+        </div>
+        <button class="close-btn" id="closeBtn" title="Isara">✕</button>
+      </div>
+
+      <div class="message-body" id="messageBody">
+        "Uy inom ka na ng gamot mahal ko, 1:00 PM na. Huwag kalimutan ha? Ingat ka palagi."
+      </div>
+      <div class="message-sender" id="messageSender">— Mahal Mo ❤️</div>
+
+      <!-- 2-Way Quick Reply Stamps -->
+      <div class="reply-section">
+        <div class="reply-label">Mabilisang Sagot (1-Tap Reply)</div>
+        <div class="reply-chips" id="replyChips">
+          <button class="reply-chip" data-reply="Nainom ko na po! 💊 Salamat sa paalala ❤️">💊 Nainom ko na!</button>
+          <button class="reply-chip" data-reply="Busog na po ako! 🍲 Kumain na ako.">🍲 Busog na po!</button>
+          <button class="reply-chip" data-reply="I love you too mahal ko! Ingat ka din ❤️">❤️ Love you too!</button>
+          <button class="reply-chip" data-reply="Opo, noted ito! Salamat mahal.">👍 Noted po!</button>
+        </div>
+        <div class="reply-status" id="replyStatus">
+          <span>✓</span> Naipadala ang iyong sagot sa mobile!
+        </div>
+      </div>
+
+      <div class="fade-timer-bar" id="fadeTimerBar"></div>
+    </div>
+
+    <div class="airmail-stripe"></div>
+  </div>
+</div>
+
+<!-- Optional Debug / Testing Bar (shown when not in strict transparent mode) -->
+<div class="debug-bar" id="debugBar" style="display:none;">
+  <span>✉️ Telegrama Runtime: <strong id="srvStatus">Listening</strong></span>
+  <button id="testMedicineBtn">💊 Paalala Gamot</button>
+  <button id="testLoveBtn">❤️ I Love You</button>
+  <button id="testFoodBtn">🍲 Kain Ka Na</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const stage = document.getElementById('stage');
+  const card = document.getElementById('telegramaCard');
+  const envelopeFront = document.getElementById('envelopeFront');
+  const cardExpanded = document.getElementById('cardExpanded');
+  const closeBtn = document.getElementById('closeBtn');
+  const fadeTimerBar = document.getElementById('fadeTimerBar');
+  const debugBar = document.getElementById('debugBar');
+
+  const teaserFrom = document.getElementById('teaserFrom');
+  const teaserMsg = document.getElementById('teaserMsg');
+  const messageBody = document.getElementById('messageBody');
+  const messageSender = document.getElementById('messageSender');
+  const dispatchMeta = document.getElementById('dispatchMeta');
+  const stampIcon = document.getElementById('stampIcon');
+  const sealIcon = document.getElementById('sealIcon');
+  const replyChips = document.getElementById('replyChips');
+  const replyStatus = document.getElementById('replyStatus');
+
+  let currentDispatchId = null;
+  let autoDismissTimer = null;
+  let isOpened = false;
+
+  // Web Audio synthesized paper rustle effect
+  function playPaperRustle() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const bufferSize = ctx.sampleRate * 0.15;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.04));
+      }
+      const whiteNoise = ctx.createBufferSource();
+      whiteNoise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 1400;
+      filter.Q.value = 1.2;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.28, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      whiteNoise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      whiteNoise.start();
+    } catch(e) {}
+  }
+
+  // Display a newly arrived Telegrama
+  function showTelegrama(data) {
+    currentDispatchId = data.id || ('msg_' + Date.now());
+    isOpened = false;
+    card.classList.remove('opened');
+    stage.classList.remove('hidden');
+    replyStatus.style.display = 'none';
+
+    teaserFrom.textContent = data.sender || 'Mahal Ko';
+    teaserMsg.textContent = data.message || 'May bagong telegrama para sa iyo...';
+    messageBody.textContent = `"${data.message || ''}"`;
+    messageSender.textContent = `— ${data.sender || 'Mahal Mo'} ${data.emoji || '❤️'}`;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    dispatchMeta.textContent = `DISPATCH #${data.number || Math.floor(1000 + Math.random() * 9000)} · ${data.location || 'MANILA TO OVERSEAS'} · ${timeStr}`;
+
+    if (data.tag === 'medicine') {
+      stampIcon.textContent = '💊';
+      sealIcon.textContent = '💊';
+    } else if (data.tag === 'food') {
+      stampIcon.textContent = '🍲';
+      sealIcon.textContent = '🍲';
+    } else if (data.tag === 'love') {
+      stampIcon.textContent = '💌';
+      sealIcon.textContent = '❤️';
+    } else {
+      stampIcon.textContent = '✉️';
+      sealIcon.textContent = '★';
+    }
+
+    playPaperRustle();
+    stage.style.opacity = '1';
+    stage.style.transform = 'translateY(0)';
+
+    // Start auto-dismiss timer in closed teaser state (30s)
+    scheduleDismiss(30);
+  }
+
+  function openTelegrama() {
+    if (isOpened) return;
+    isOpened = true;
+    card.classList.add('opened');
+    playPaperRustle();
+
+    // After opening, give 14 seconds to read / reply
+    scheduleDismiss(14);
+  }
+
+  function closeTelegrama() {
+    stage.style.transition = 'all 0.6s ease';
+    stage.style.opacity = '0';
+    stage.style.transform = 'translateY(24px) scale(0.96)';
+    if (autoDismissTimer) clearTimeout(autoDismissTimer);
+    setTimeout(() => {
+      stage.classList.add('hidden');
+      card.classList.remove('opened');
+      isOpened = false;
+    }, 650);
+  }
+
+  function scheduleDismiss(seconds) {
+    if (autoDismissTimer) clearTimeout(autoDismissTimer);
+    if (fadeTimerBar) {
+      fadeTimerBar.style.transition = 'none';
+      fadeTimerBar.style.transform = 'scaleX(1)';
+      requestAnimationFrame(() => {
+        fadeTimerBar.style.transition = `transform ${seconds}s linear`;
+        fadeTimerBar.style.transform = 'scaleX(0)';
+      });
+    }
+
+    autoDismissTimer = setTimeout(() => {
+      closeTelegrama();
+    }, seconds * 1000);
+  }
+
+  // Handle Quick Reply Click
+  replyChips.addEventListener('click', event => {
+    const btn = event.target.closest('.reply-chip');
+    if (!btn) return;
+    const replyText = btn.getAttribute('data-reply');
+    sendReply(currentDispatchId, replyText);
+  });
+
+  async function sendReply(id, replyText) {
+    replyStatus.style.display = 'flex';
+    replyStatus.innerHTML = `<span>✓</span> Naipadala: <em>"${replyText}"</em>`;
+
+    // Dispatch to local Python service or BroadcastChannel
+    try {
+      await fetch('http://127.0.0.1:54321/api/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, reply: replyText, time: new Date().toISOString() })
+      });
+    } catch(err) {
+      // Local fallback via BroadcastChannel if service is offline
+      if (typeof BroadcastChannel !== 'undefined') {
+        new BroadcastChannel('ohverlay_telegrama').postMessage({ type: 'reply', id, reply: replyText });
+      }
+    }
+
+    // Extended viewing time after replying
+    scheduleDismiss(5);
+  }
+
+  envelopeFront.addEventListener('click', openTelegrama);
+  closeBtn.addEventListener('click', closeTelegrama);
+
+  // ─── Realtime Listener with Python TelegramaService ───
+  function initEventSource() {
+    if (typeof EventSource === 'undefined') return;
+    try {
+      const es = new EventSource('http://127.0.0.1:54321/api/events');
+      es.onmessage = e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg && msg.message) showTelegrama(msg);
+        } catch(err) {}
+      };
+      es.onerror = () => {
+        // Fallback polling every 3 seconds if SSE reconnects
+        setTimeout(pollLatestMessage, 3000);
+      };
+    } catch(err) {
+      setTimeout(pollLatestMessage, 3000);
+    }
+  }
+
+  async function pollLatestMessage() {
+    try {
+      const res = await fetch('http://127.0.0.1:54321/api/latest');
+      if (res.ok) {
+        const msg = await res.json();
+        if (msg && msg.id && msg.id !== currentDispatchId && (Date.now() - msg.timestamp < 60000)) {
+          showTelegrama(msg);
+        }
+      }
+    } catch(e) {}
+    setTimeout(pollLatestMessage, 2500);
+  }
+
+  // Cross-overlay BroadcastChannel listener
+  if (typeof BroadcastChannel !== 'undefined') {
+    const bc = new BroadcastChannel('ohverlay_telegrama');
+    bc.onmessage = evt => {
+      if (evt.data && evt.data.type === 'dispatch') {
+        showTelegrama(evt.data);
+      }
+    };
+  }
+
+  // Debug Buttons for Testing
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('controls') === '1' || params.get('debug') === '1') {
+    debugBar.style.display = 'flex';
+  }
+
+  document.getElementById('testMedicineBtn').addEventListener('click', () => {
+    showTelegrama({
+      sender: 'Mahal Ko',
+      message: 'Uy inom ka na ng gamot at 1:00 PM, huwag kalimutan mahal ko ha.',
+      tag: 'medicine',
+      emoji: '💊',
+      location: 'RIYADH TO MANILA'
+    });
+  });
+
+  document.getElementById('testLoveBtn').addEventListener('click', () => {
+    showTelegrama({
+      sender: 'Asawa Mo',
+      message: 'I love you mahal ko! Proud na proud ako sa iyo palagi. Ingat ka.',
+      tag: 'love',
+      emoji: '❤️',
+      location: 'DUBAI TO CEBU'
+    });
+  });
+
+  document.getElementById('testFoodBtn').addEventListener('click', () => {
+    showTelegrama({
+      sender: 'Nanay',
+      message: 'Kumain ka na ba anak? Huwag magpapalipas ng gutom sa trabaho.',
+      tag: 'food',
+      emoji: '🍲',
+      location: 'SINGAPORE TO DAVAO'
+    });
+  });
+
+  // Initial greeting preview on launch
+  setTimeout(() => {
+    showTelegrama({
+      sender: 'Ohverlay Telegrama',
+      message: 'Maligayang pagdating sa Telegrama! Handa nang tumanggap ng mga mensahe mula sa iyong pamilya.',
+      tag: 'love',
+      emoji: '💌',
+      location: 'OHVERLAY SYSTEM'
+    });
+  }, 1200);
+
+  initEventSource();
+
+  window.showTelegrama = showTelegrama;
+})();
+</script>
+</body>
+</html>

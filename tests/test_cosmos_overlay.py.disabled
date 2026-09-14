@@ -1,0 +1,56 @@
+from pathlib import Path
+
+from PySide6.QtWidgets import QApplication
+
+from config.settings import Settings
+from ui.control_center import COSMOS_SPECIES, ControlCenter
+
+
+def test_cosmos_uses_real_bipinnatus_color_range():
+    source = Path("marketplace-overlays/cosmos-overlay.html").read_text(encoding="utf-8")
+    for color_name in ("pearl white", "pale blush", "shell pink", "rose pink", "deep magenta", "crimson"):
+        assert color_name in source
+    assert "FLOWER_PALETTES" in source
+    assert "#fff079" in source  # yellow disc florets remain consistent across ray colors
+
+
+def test_cosmos_species_selector_changes_flowers_and_leaf_morphology():
+    source = Path("marketplace-overlays/cosmos-overlay.html").read_text(encoding="utf-8")
+    assert "SULPHUREUS_PALETTES" in source
+    assert "function drawLanceolateLeaflet" in source
+    assert "branching compound blade" in source
+    assert 'id="species"' in source
+    assert "window.setCosmosSpecies" in source
+
+
+def test_cosmos_species_selection_is_saved(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    settings = Settings(config_path=str(tmp_path / "config.json"))
+    control = ControlCenter(config=settings)
+    combo = control._species_widgets["cosmos"]["cosmos_species"]
+    assert combo.count() == len(COSMOS_SPECIES) == 2
+    combo.setCurrentIndex(combo.findData("sulphureus"))
+    assert settings.get("overlays", "cosmos_species") == "sulphureus"
+    control.close()
+
+
+def test_cosmos_bloom_size_slider_is_saved_and_shows_inches(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    settings = Settings(config_path=str(tmp_path / "config.json"))
+    control = ControlCenter(config=settings)
+    widgets = control._species_widgets["cosmos"]
+    slider = widgets["cosmos_flower_size"]
+    assert slider.value() == 192
+    assert widgets["cosmos_flower_size_label"].text() == "2.0 in"
+    slider.setValue(240)
+    assert settings.get("overlays", "cosmos_flower_size_px") == 240
+    assert widgets["cosmos_flower_size_label"].text() == "2.5 in"
+    control.close()
+
+
+def test_sulphur_cosmos_photo_bloom_asset_is_packaged():
+    source = Path("marketplace-overlays/cosmos-overlay.html").read_text(encoding="utf-8")
+    asset = Path("marketplace-overlays/assets/cosmos-sulphureus-flower.png")
+    assert asset.is_file()
+    assert "assets/cosmos-sulphureus-flower.png" in source
+    assert "drawSulphureusBloom" in source
