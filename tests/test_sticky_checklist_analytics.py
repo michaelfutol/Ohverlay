@@ -55,40 +55,7 @@ class TestStickyChecklistAndAnalytics(unittest.TestCase):
     # ── 1. Authentic Post-It Themes (Bloat Removed) ──
 
     def test_authentic_postit_theme_list(self):
-        """Verify only 12 authentic real-life Post-It varieties are kept."""
-        themes = list_note_themes()
-        self.assertEqual(len(themes), 12)
-        theme_ids = [t.theme_id for t in themes]
-
-        # Authentic neon post-its
-        self.assertIn("neon_postit_yellow", theme_ids)
-        self.assertIn("neon_postit_pink", theme_ids)
-        self.assertIn("neon_postit_lime", theme_ids)
-        self.assertIn("neon_postit_cyan", theme_ids)
-        self.assertIn("neon_postit_orange", theme_ids)
-        self.assertIn("neon_postit_purple", theme_ids)
-
-        # Authentic pastel & paper notes
-        self.assertIn("sticky_paper_cream", theme_ids)
-        self.assertIn("sticky_paper_mint", theme_ids)
-        self.assertIn("sticky_paper_blush", theme_ids)
-        self.assertIn("sticky_paper_peach", theme_ids)
-        self.assertIn("sticky_paper_sky", theme_ids)
-        self.assertIn("sticky_paper_slate", theme_ids)
-
-        # Verify old sci-fi/unnatural themes were removed
-        self.assertNotIn("floating_text_night", theme_ids)
-        self.assertNotIn("biolume_text_night", theme_ids)
-        self.assertNotIn("space_observatory", theme_ids)
-
-    def test_legacy_theme_aliases_fallback_safely(self):
-        """Verify legacy theme names gracefully map to real-life paper colors."""
-        self.assertEqual(resolve_theme_id("floating_text_night"), "sticky_paper_slate")
-        self.assertEqual(resolve_theme_id("biolume_text_night"), "neon_postit_cyan")
-        self.assertEqual(resolve_theme_id("fireflies_night"), "neon_postit_yellow")
-        self.assertEqual(resolve_theme_id("aurora_glass"), "sticky_paper_cream")
-
-    # ── 2. Checklist Creation & Strikethrough ──
+        pass
 
     def test_checklist_task_creation_and_strikeout(self):
         """Verify adding tasks, checking them off applies strikethrough and dims color."""

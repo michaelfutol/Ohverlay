@@ -861,7 +861,7 @@ class StickyNoteWidget(QWidget):
             }}
         """)
 
-        note_mode = self.state.get("note_mode", "checklist")
+        note_mode = "checklist"
         if float_on_lock:
             self.project_title_edit.hide()
             self.checklist_scroll.hide()
@@ -1012,7 +1012,7 @@ class StickyNoteWidget(QWidget):
             self.project_title_edit.setReadOnly(locked)
         if hasattr(self, "add_task_btn"):
             self.add_task_btn.setEnabled(not locked)
-            self.add_task_btn.setVisible(not locked and self.state.get("note_mode", "checklist") == "checklist")
+            self.add_task_btn.setVisible(not locked and "checklist" == "checklist")
         if hasattr(self, "_task_rows"):
             for row in self._task_rows.values():
                 if hasattr(row, "line_edit"):
@@ -1068,7 +1068,7 @@ class StickyNoteWidget(QWidget):
             self._sync_tasks_from_text()
         self._save_state()
 
-    def _set_note_mode(self, mode):
+    def _old_set_note_mode(self, mode):
         self.state["note_mode"] = mode
         if mode == "checklist":
             self._sync_tasks_from_text()
@@ -1629,17 +1629,6 @@ class StickyNoteWidget(QWidget):
             action.triggered.connect(lambda checked, theme_id=theme.theme_id: self._set_theme(theme_id))
 
         # ── Mode & Task Actions ──
-        mode_menu = menu.addMenu("Note Mode")
-        chk_act = mode_menu.addAction("☑️ Checklist Mode")
-        chk_act.setCheckable(True)
-        chk_act.setChecked(self.state.get("note_mode", "checklist") == "checklist")
-        chk_act.triggered.connect(lambda: self._set_note_mode("checklist"))
-
-        free_act = mode_menu.addAction("📝 Freeform Text")
-        free_act.setCheckable(True)
-        free_act.setChecked(self.state.get("note_mode", "checklist") == "freeform")
-        free_act.triggered.connect(lambda: self._set_note_mode("freeform"))
-
         menu.addAction("➕ Add Task", lambda: self._add_task_below())
 
         # ── Timer ──
@@ -1798,14 +1787,12 @@ class StickyNoteWidget(QWidget):
                         self.smaller_btn, self.bigger_btn, self.send_btn,
                         self.action_btn, self.secondary_action_btn, self.size_grip,
                     )
-                    # Also skip if the child is inside checklist_scroll (task edits, checkboxes)
+                    # Allow dragging from empty spaces even inside the scroll area
                     is_interactive = False
                     if child is not None:
                         if child in interactive:
                             is_interactive = True
-                        elif self.checklist_scroll.isAncestorOf(child):
-                            is_interactive = True
-                        elif isinstance(child, (QCheckBox, QLineEdit, QPushButton)):
+                        elif isinstance(child, (QCheckBox, QLineEdit, QPushButton, QTextEdit)):
                             is_interactive = True
                     if not is_interactive:
                         self._drag_origin = event.globalPosition().toPoint()
