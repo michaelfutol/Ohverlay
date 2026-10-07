@@ -235,6 +235,9 @@
     margin-bottom: 4px;
   }
 
+  .status-box.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .status-box.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
   .reply-highlight {
     background: #ffffff;
     border-radius: 6px;
@@ -377,77 +380,98 @@
     });
   });
 
+  // Pairing token travels in the link/QR (?t=...) and is sent as a header with every request
+  const pairToken = new URLSearchParams(location.search).get('t') || '';
+  function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (pairToken) h['X-Telegrama-Token'] = pairToken;
+    return h;
+  }
+
+  // Re-used when retrying so a flaky connection can never deliver the same telegram twice
+  let pendingId = null;
+
   // Send dispatch
   sendBtn.addEventListener('click', async () => {
     const sender = senderInput.value.trim() || 'Mahal Ko';
     const message = messageText.value.trim();
     if (!message) {
-      alert('Mangyaring maglagay ng mensahe o pumili sa mga mabilisang paalala.');
+      showStatus('✏️ Walang mensahe', 'Maglagay ng mensahe o pumili sa mga mabilisang paalala.', 'warn');
       messageText.focus();
       return;
     }
 
-    try {
-      localStorage.setItem('telegrama_sender_name', sender);
-    } catch(e) {}
+    try { localStorage.setItem('telegrama_sender_name', sender); } catch(e) {}
 
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<span>Ipinapadala...</span> <span>⏳</span>';
 
-    const dispatchId = 'tg_' + Date.now();
+    if (!pendingId) pendingId = 'tg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const dispatchId = pendingId;
     lastDispatchedId = dispatchId;
-
-    const payload = {
-      id: dispatchId,
-      sender: sender,
-      message: message,
-      tag: currentTag,
-      emoji: currentEmoji,
-      timestamp: Date.now()
-    };
 
     try {
       const res = await fetch('/api/dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: authHeaders(),
+        body: JSON.stringify({ id: dispatchId, sender, message, tag: currentTag, emoji: currentEmoji })
       });
       if (res.ok) {
-        showStatus('✓ Naipadala na sa Desktop!', 'Nakatambad na ang iyong telegrama sa screen ng iyong mahal sa buhay. Naghihintay ng tugon...');
-        startReplyPolling(dispatchId);
+        pendingId = null;
+        messageText.value = '';
+        charCount.textContent = '0';
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        showStatus('✓ Naipadala', 'Naghihintay na makarating sa desktop...', 'ok');
+        startReceiptPolling(dispatchId);
+      } else if (res.status === 429) {
+        showStatus('⏳ Sandali lang', 'Masyadong maraming telegrama. Subukan ulit maya-maya.', 'warn');
+      } else if (res.status === 401 || res.status === 403) {
+        showStatus('🔒 Hindi pa naka-pair', 'Buksan ulit ang link o i-scan ang QR mula sa Ohverlay sa desktop.', 'error');
       } else {
-        showStatus('✓ Naitala ang Telegrama', 'Naitala ang mensahe. Ipinapasa sa desktop runtime.');
+        showStatus('⚠️ Hindi naipadala', 'May problema sa desktop. Subukan ulit.', 'error');
       }
     } catch(err) {
-      // Offline fallback
-      showStatus('✓ Naipadala (Local)', 'Naipadala ang mensahe sa Ohverlay desktop!');
+      showStatus('⚠️ Walang koneksyon', 'Hindi naipadala. Siguraduhing magkasama kayo sa Wi-Fi, tapos subukan ulit — hindi madodoble ang mensahe.', 'error');
     } finally {
       sendBtn.disabled = false;
       sendBtn.innerHTML = '<span>Ipadala ang Telegrama</span> <span>✈️</span>';
     }
   });
 
-  function showStatus(title, desc) {
-    statusBox.classList.add('show');
+  function showStatus(title, desc, kind) {
+    statusBox.className = 'status-box show' + (kind && kind !== 'ok' ? ' ' + kind : '');
     statusTitle.textContent = title;
     statusDesc.textContent = desc;
     replyContainer.style.display = 'none';
   }
 
-  function startReplyPolling(dispatchId) {
+  // Live receipts: queued -> delivered -> read -> replied
+  const RECEIPTS = {
+    queued:    ['✓ Naipadala', 'Naghihintay na makarating sa desktop...'],
+    delivered: ['✓✓ Nakarating na', 'Nakatambad na ang telegrama sa screen.'],
+    read:      ['👀 Nabasa na', 'Binuksan na ang iyong telegrama.']
+  };
+
+  function startReceiptPolling(dispatchId) {
     if (replyPollTimer) clearInterval(replyPollTimer);
+    let polls = 0;
     replyPollTimer = setInterval(async () => {
+      if (++polls > 300) { clearInterval(replyPollTimer); return; }   // stop after ~10 minutes
       try {
-        const res = await fetch(`/api/status?id=${dispatchId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.reply) {
-            clearInterval(replyPollTimer);
-            statusTitle.textContent = '🎉 May Tugon Mula sa Desktop!';
-            statusDesc.textContent = 'Binuksan at sinagot ng iyong mahal sa buhay:';
-            replyContainer.style.display = 'block';
-            replyTextContent.textContent = `"${data.reply}"`;
-          }
+        const res = await fetch('/api/status?id=' + encodeURIComponent(dispatchId), { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.state) return;
+        if (data.reply) {
+          clearInterval(replyPollTimer);
+          statusBox.className = 'status-box show';
+          statusTitle.textContent = '🎉 May Tugon Mula sa Desktop!';
+          statusDesc.textContent = 'Sumagot ang iyong mahal sa buhay:';
+          replyContainer.style.display = 'block';
+          replyTextContent.textContent = '"' + data.reply + '"';
+        } else if (RECEIPTS[data.state]) {
+          statusTitle.textContent = RECEIPTS[data.state][0];
+          statusDesc.textContent = RECEIPTS[data.state][1];
         }
       } catch(e) {}
     }, 2000);

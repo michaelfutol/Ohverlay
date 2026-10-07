@@ -8,15 +8,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QGuiApplication
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
-    QGraphicsDropShadowEffect,
     QHeaderView,
     QHBoxLayout,
     QInputDialog,
@@ -40,7 +38,7 @@ class MasterDashboard(QWidget):
     def __init__(self, sticky_manager, audit_store=None, parent=None):
         super().__init__(parent)
         self.sticky_manager = sticky_manager
-        self.audit_store = audit_store
+        self.audit_store = audit_store or getattr(sticky_manager, "audit_store", None)
 
         self.setWindowTitle("Ohverlay — Master Task & Sticky Notes Dashboard")
         self.resize(1060, 680)
@@ -214,24 +212,28 @@ class MasterDashboard(QWidget):
         self.tabs = QTabWidget(self)
         self.tab_active = QWidget()
         self.tab_history = QWidget()
+        self.tab_analytics = QWidget()
 
         self._build_active_tab()
         self._build_history_tab()
+        self._build_analytics_tab()
 
         self.tabs.addTab(self.tab_active, "📌 Active Notes & Running Timers")
         self.tabs.addTab(self.tab_history, "📜 Task History & Audit Log")
+        self.tabs.addTab(self.tab_analytics, "📊 Time Analytics & Task Log")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         root_layout.addWidget(self.tabs, 1)
 
     def _make_kpi_card(self, label: str, value: str, color_hex: str) -> QFrame:
         frame = QFrame(self)
-        frame.setStyleSheet(f"""
-            QFrame {{
+        frame.setStyleSheet("""
+            QFrame {
                 background-color: #1a2421;
                 border: 1px solid #2d3d36;
                 border-radius: 5px;
                 padding: 4px;
-            }}
+            }
         """)
         vbox = QVBoxLayout(frame)
         vbox.setContentsMargins(8, 4, 8, 4)
@@ -385,6 +387,91 @@ class MasterDashboard(QWidget):
         self.history_table.setColumnWidth(4, 130)
         layout.addWidget(self.history_table, 1)
 
+    def _build_analytics_tab(self):
+        layout = QVBoxLayout(self.tab_analytics)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+
+        # ── Time Analytics KPI Cards ──
+        analytics_kpis = QHBoxLayout()
+        analytics_kpis.setSpacing(8)
+
+        self.card_focus_time = self._make_kpi_card("COMPOUNDED FOCUS TIME", "0s", "#dfb880")
+        self.card_completed_tasks = self._make_kpi_card("COMPLETED TASKS", "0", "#6be585")
+        self.card_avg_duration = self._make_kpi_card("AVG TASK DURATION", "0s", "#62c4ff")
+        self.card_total_projects = self._make_kpi_card("ACTIVE PROJECTS", "0", "#cfa062")
+
+        analytics_kpis.addWidget(self.card_focus_time)
+        analytics_kpis.addWidget(self.card_completed_tasks)
+        analytics_kpis.addWidget(self.card_avg_duration)
+        analytics_kpis.addWidget(self.card_total_projects)
+        layout.addLayout(analytics_kpis)
+
+        # ── Filter & Search Toolbar ──
+        toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("Search Tasks:"))
+        self.analytics_search_input = QLineEdit(self.tab_analytics)
+        self.analytics_search_input.setPlaceholderText("Filter by project, task description, or date…")
+        self.analytics_search_input.textChanged.connect(self.refresh_analytics_table)
+        toolbar.addWidget(self.analytics_search_input, 2)
+
+        toolbar.addWidget(QLabel("Project:"))
+        self.analytics_project_combo = QComboBox(self.tab_analytics)
+        self.analytics_project_combo.addItem("All Projects")
+        self.analytics_project_combo.currentIndexChanged.connect(self.refresh_analytics_table)
+        toolbar.addWidget(self.analytics_project_combo)
+
+        toolbar.addStretch()
+
+        export_btn = QPushButton("💾 Export Report", self.tab_analytics)
+        export_btn.clicked.connect(self._export_analytics)
+        toolbar.addWidget(export_btn)
+
+        refresh_btn = QPushButton("🔄 Refresh", self.tab_analytics)
+        refresh_btn.clicked.connect(self.refresh_analytics_table)
+        toolbar.addWidget(refresh_btn)
+
+        layout.addLayout(toolbar)
+
+        # ── Completed Tasks Table ──
+        self.analytics_table = QTableWidget(0, 6, self.tab_analytics)
+        self.analytics_table.setHorizontalHeaderLabels([
+            "PROJECT / NOTE", "TASK NAME", "EXACT START TIME", "EXACT FINISH TIME", "COMPOUNDED DURATION", "STATUS"
+        ])
+        self.analytics_table.verticalHeader().setVisible(False)
+        self.analytics_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.analytics_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.analytics_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.analytics_table.setColumnWidth(0, 150)
+        self.analytics_table.setColumnWidth(2, 150)
+        self.analytics_table.setColumnWidth(3, 150)
+        self.analytics_table.setColumnWidth(4, 180)
+        self.analytics_table.setColumnWidth(5, 120)
+        layout.addWidget(self.analytics_table, 1)
+
+        # ── Project Compounded Breakdown Banner ──
+        self.project_breakdown_lbl = QLabel("Compounded Project Focus: No completed checklist tasks yet", self.tab_analytics)
+        self.project_breakdown_lbl.setStyleSheet("""
+            QLabel {
+                background-color: #151d1a;
+                border: 1px solid #2d3d36;
+                border-radius: 4px;
+                padding: 6px 10px;
+                color: #cfa062;
+                font-size: 11px;
+                font-style: italic;
+            }
+        """)
+        layout.addWidget(self.project_breakdown_lbl)
+
+    def _on_tab_changed(self, index):
+        if hasattr(self, "tab_analytics") and self.tabs.widget(index) == self.tab_analytics:
+            self.refresh_analytics_table()
+        elif hasattr(self, "tab_history") and self.tabs.widget(index) == self.tab_history:
+            self.refresh_history_table()
+        elif hasattr(self, "tab_active") and self.tabs.widget(index) == self.tab_active:
+            self.refresh_active_table()
+
     # ── Live Tickers & Data Refresh ──
 
     def _tick_live_timers(self):
@@ -392,6 +479,8 @@ class MasterDashboard(QWidget):
             return
         self._update_kpi_cards()
         self.refresh_active_table(preserve_selection=True)
+        if hasattr(self, "tab_analytics") and self.tabs.currentWidget() == self.tab_analytics:
+            self.refresh_analytics_table()
 
     def _update_kpi_cards(self):
         if not self.sticky_manager:
@@ -529,6 +618,91 @@ class MasterDashboard(QWidget):
             self.history_table.setItem(row_idx, 4, QTableWidgetItem(action))
             self.history_table.setItem(row_idx, 5, QTableWidgetItem(details))
 
+    def refresh_analytics_table(self):
+        if not self.audit_store:
+            return
+
+        analytics = self.audit_store.get_time_analytics()
+        total_formatted = analytics.get("total_compounded_formatted", "0s")
+        completed_count = analytics.get("completed_tasks_count", 0)
+        today_count = analytics.get("tasks_today_count", 0)
+        avg_formatted = analytics.get("average_duration_formatted", "0s")
+        proj_durations = analytics.get("project_durations", {})
+        tasks = analytics.get("tasks", [])
+
+        # Update KPI Cards
+        self.card_focus_time.findChild(QLabel, "kpiVal").setText(total_formatted)
+        self.card_completed_tasks.findChild(QLabel, "kpiVal").setText(f"{completed_count} ({today_count} today)")
+        self.card_avg_duration.findChild(QLabel, "kpiVal").setText(avg_formatted)
+        self.card_total_projects.findChild(QLabel, "kpiVal").setText(str(len(proj_durations)))
+
+        # Update Project Combo (preserving selection)
+        current_project_filter = self.analytics_project_combo.currentText()
+        project_names = sorted(list(proj_durations.keys()))
+        self.analytics_project_combo.blockSignals(True)
+        self.analytics_project_combo.clear()
+        self.analytics_project_combo.addItem("All Projects")
+        for p in project_names:
+            self.analytics_project_combo.addItem(p)
+        idx = self.analytics_project_combo.findText(current_project_filter)
+        if idx >= 0:
+            self.analytics_project_combo.setCurrentIndex(idx)
+        else:
+            self.analytics_project_combo.setCurrentIndex(0)
+        self.analytics_project_combo.blockSignals(False)
+
+        # Update Project Breakdown banner
+        if proj_durations:
+            breakdown_parts = []
+            for proj, dur_sec in sorted(proj_durations.items(), key=lambda x: x[1], reverse=True):
+                dur_str = self.audit_store._format_duration(dur_sec) if hasattr(self.audit_store, "_format_duration") else f"{dur_sec}s"
+                breakdown_parts.append(f"📁 <b>{proj}</b>: {dur_str}")
+            self.project_breakdown_lbl.setText("Compounded Focus: " + "  ·  ".join(breakdown_parts))
+        else:
+            self.project_breakdown_lbl.setText("Compounded Project Focus: No completed checklist tasks yet")
+
+        query = self.analytics_search_input.text().strip().lower()
+        selected_proj = self.analytics_project_combo.currentText()
+
+        filtered_tasks = []
+        for t in tasks:
+            proj = t.get("project", "")
+            if selected_proj != "All Projects" and proj != selected_proj:
+                continue
+            if query:
+                combined = f"{proj} {t.get('task_name', '')} {t.get('start_time', '')} {t.get('finish_time', '')}".lower()
+                if query not in combined:
+                    continue
+            filtered_tasks.append(t)
+
+        self.analytics_table.setRowCount(len(filtered_tasks))
+        for row_idx, t in enumerate(filtered_tasks):
+            proj = t.get("project", "Sticky Note")
+            task_name = t.get("task_name", "")
+            start_ts = t.get("start_time", "").replace("T", " ")
+            finish_ts = t.get("finish_time", "").replace("T", " ")
+            dur_text = t.get("duration_formatted", "")
+            status = t.get("status", "COMPLETED")
+
+            item_proj = QTableWidgetItem(proj)
+            item_task = QTableWidgetItem(task_name)
+            item_start = QTableWidgetItem(start_ts if start_ts else "—")
+            item_finish = QTableWidgetItem(finish_ts if finish_ts else "—")
+            item_dur = QTableWidgetItem(f"⏱️ {dur_text}")
+            item_dur.setForeground(QColor("#dfb880"))
+            item_dur.setFont(QFont("Book Antiqua", 10, QFont.Bold))
+
+            item_status = QTableWidgetItem(f"✔ {status}")
+            item_status.setForeground(QColor("#6be585"))
+            item_status.setFont(QFont("Book Antiqua", 10, QFont.Bold))
+
+            self.analytics_table.setItem(row_idx, 0, item_proj)
+            self.analytics_table.setItem(row_idx, 1, item_task)
+            self.analytics_table.setItem(row_idx, 2, item_start)
+            self.analytics_table.setItem(row_idx, 3, item_finish)
+            self.analytics_table.setItem(row_idx, 4, item_dur)
+            self.analytics_table.setItem(row_idx, 5, item_status)
+
     # ── User Actions ──
 
     def _create_new_sticky(self):
@@ -540,6 +714,7 @@ class MasterDashboard(QWidget):
             self._update_kpi_cards()
             self.refresh_active_table()
             self.refresh_history_table()
+            self.refresh_analytics_table()
 
     def _get_selected_note_widget(self):
         row = self.active_table.currentRow()
@@ -621,6 +796,7 @@ class MasterDashboard(QWidget):
             self._update_kpi_cards()
             self.refresh_active_table()
             self.refresh_history_table()
+            self.refresh_analytics_table()
 
     def _export_history(self):
         if not self.audit_store:
@@ -640,6 +816,40 @@ class MasterDashboard(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Export Failed", f"Error exporting history: {e}")
 
+    def _export_analytics(self):
+        if not self.audit_store:
+            return
+        analytics = self.audit_store.get_time_analytics()
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Time Analytics & Task Report",
+            f"ohverlay_task_analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            "JSON Files (*.json);;CSV Files (*.csv)",
+        )
+        if file_path:
+            try:
+                if file_path.endswith(".csv"):
+                    import csv
+                    with open(file_path, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(["Project", "Task", "Start Time", "Finish Time", "Duration (Seconds)", "Duration Formatted", "Status"])
+                        for t in analytics.get("tasks", []):
+                            writer.writerow([
+                                t.get("project", ""),
+                                t.get("task_name", ""),
+                                t.get("start_time", ""),
+                                t.get("finish_time", ""),
+                                t.get("duration_seconds", 0),
+                                t.get("duration_formatted", ""),
+                                t.get("status", "COMPLETED"),
+                            ])
+                else:
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        json.dump(analytics, f, indent=2)
+                QMessageBox.information(self, "Export Successful", f"Saved analytics report to:\n{file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Failed", f"Error exporting analytics: {e}")
+
     def _clear_history(self):
         if not self.audit_store:
             return
@@ -653,9 +863,11 @@ class MasterDashboard(QWidget):
         if reply == QMessageBox.Yes:
             self.audit_store.clear_history()
             self.refresh_history_table()
+            self.refresh_analytics_table()
 
     def showEvent(self, event):
         self._update_kpi_cards()
         self.refresh_active_table()
         self.refresh_history_table()
+        self.refresh_analytics_table()
         super().showEvent(event)

@@ -476,6 +476,27 @@
   let autoDismissTimer = null;
   let isOpened = false;
 
+  // ─── Service wiring (v2 API: delivery receipts, replay-safe push, unread inbox) ───
+  const params0 = new URLSearchParams(window.location.search);
+  const API = (params0.get('api') || 'http://127.0.0.1:54321').replace(/\/$/, '');
+  const queue = [];          // messages waiting behind the one currently on screen
+  const seen = new Set();    // ids already shown this session (dedupe SSE/unread overlap)
+  const readIds = new Set();
+  let lastSeq = 0;
+  let currentMsg = null;
+  let resurfaceTimer = null;
+
+  function post(path, body) {
+    return fetch(API + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).catch(() => null);
+  }
+  function ack(msg, state) {
+    if (msg && msg.id && msg.seq) post('/api/ack', { id: msg.id, state });
+  }
+
   // Web Audio synthesized paper rustle effect
   function playPaperRustle() {
     try {
@@ -505,7 +526,9 @@
   }
 
   // Display a newly arrived Telegrama
-  function showTelegrama(data) {
+  function renderTelegrama(data) {
+    currentMsg = data;
+    ack(data, 'delivered');
     currentDispatchId = data.id || ('msg_' + Date.now());
     isOpened = false;
     card.classList.remove('opened');
@@ -543,9 +566,33 @@
     scheduleDismiss(30);
   }
 
+  function isShowing() { return !stage.classList.contains('hidden'); }
+
+  // Public entry point: dedupes, tracks the newest sequence number, queues behind a visible card.
+  function showTelegrama(data) {
+    if (!data) return;
+    if (data.seq) lastSeq = Math.max(lastSeq, data.seq);
+    if (data.id) {
+      if (seen.has(data.id) || queue.some(q => q.id === data.id)) return;
+      seen.add(data.id);
+    }
+    if (isShowing()) { queue.push(data); return; }
+    renderTelegrama(data);
+  }
+
+  function showNext() {
+    if (queue.length) setTimeout(() => { if (!isShowing()) renderTelegrama(queue.shift()); }, 400);
+  }
+
+  function resurfaceLater() {
+    clearTimeout(resurfaceTimer);
+    resurfaceTimer = setTimeout(fetchUnread, 10 * 60 * 1000);  // gentle re-nudge for unread telegrams
+  }
+
   function openTelegrama() {
     if (isOpened) return;
     isOpened = true;
+    if (currentMsg && currentMsg.id) { readIds.add(currentMsg.id); ack(currentMsg, 'read'); }
     card.classList.add('opened');
     playPaperRustle();
 
@@ -562,6 +609,8 @@
       stage.classList.add('hidden');
       card.classList.remove('opened');
       isOpened = false;
+      if (currentMsg && currentMsg.id && !readIds.has(currentMsg.id)) resurfaceLater();
+      showNext();
     }, 650);
   }
 
@@ -591,60 +640,46 @@
 
   async function sendReply(id, replyText) {
     replyStatus.style.display = 'flex';
-    replyStatus.innerHTML = `<span>✓</span> Naipadala: <em>"${replyText}"</em>`;
+    replyStatus.textContent = '';
+    const tick = document.createElement('span');
+    tick.textContent = '✓';
+    const quoted = document.createElement('em');
+    quoted.textContent = '"' + replyText + '"';
+    replyStatus.append(tick, document.createTextNode(' Naipadala: '), quoted);
 
-    // Dispatch to local Python service or BroadcastChannel
-    try {
-      await fetch('http://127.0.0.1:54321/api/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, reply: replyText, time: new Date().toISOString() })
-      });
-    } catch(err) {
-      // Local fallback via BroadcastChannel if service is offline
-      if (typeof BroadcastChannel !== 'undefined') {
-        new BroadcastChannel('ohverlay_telegrama').postMessage({ type: 'reply', id, reply: replyText });
-      }
+    const res = await post('/api/reply', { id, reply: replyText, time: new Date().toISOString() });
+    if (!res && typeof BroadcastChannel !== 'undefined') {
+      new BroadcastChannel('ohverlay_telegrama').postMessage({ type: 'reply', id, reply: replyText });
     }
-
-    // Extended viewing time after replying
-    scheduleDismiss(5);
+    scheduleDismiss(5);   // extended viewing time after replying
   }
 
   envelopeFront.addEventListener('click', openTelegrama);
   closeBtn.addEventListener('click', closeTelegrama);
 
-  // ─── Realtime Listener with Python TelegramaService ───
-  function initEventSource() {
-    if (typeof EventSource === 'undefined') return;
+  // ─── Realtime listener ───
+  async function fetchUnread() {
     try {
-      const es = new EventSource('http://127.0.0.1:54321/api/events');
-      es.onmessage = e => {
-        try {
-          const msg = JSON.parse(e.data);
-          if (msg && msg.message) showTelegrama(msg);
-        } catch(err) {}
-      };
-      es.onerror = () => {
-        // Fallback polling every 3 seconds if SSE reconnects
-        setTimeout(pollLatestMessage, 3000);
-      };
-    } catch(err) {
-      setTimeout(pollLatestMessage, 3000);
-    }
+      const res = await fetch(API + '/api/unread');
+      if (!res.ok) return;
+      const data = await res.json();
+      lastSeq = Math.max(lastSeq, data.last_seq || 0);
+      (data.messages || []).forEach(m => {
+        if (currentMsg && m.id === currentMsg.id) return;
+        seen.delete(m.id);     // unread by definition -> allowed to surface again
+        showTelegrama(m);
+      });
+    } catch (e) {}
   }
 
-  async function pollLatestMessage() {
-    try {
-      const res = await fetch('http://127.0.0.1:54321/api/latest');
-      if (res.ok) {
-        const msg = await res.json();
-        if (msg && msg.id && msg.id !== currentDispatchId && (Date.now() - msg.timestamp < 60000)) {
-          showTelegrama(msg);
-        }
-      }
-    } catch(e) {}
-    setTimeout(pollLatestMessage, 2500);
+  async function initRealtime() {
+    await fetchUnread();                     // catch up on anything missed while closed
+    if (typeof EventSource === 'undefined') return;
+    const url = API + '/api/events' + (lastSeq ? '?after=' + lastSeq : '');
+    const es = new EventSource(url);         // the browser auto-reconnects with Last-Event-ID
+    es.onmessage = e => {
+      try { const m = JSON.parse(e.data); if (m && m.message) showTelegrama(m); } catch (err) {}
+    };
   }
 
   // Cross-overlay BroadcastChannel listener
@@ -693,8 +728,12 @@
     });
   });
 
-  // Initial greeting preview on launch
+  // One-time welcome (or whenever debug controls are on) — not on every launch
+  let greeted = false;
+  try { greeted = localStorage.getItem('telegrama_greeted') === '1'; } catch (e) {}
   setTimeout(() => {
+    if (greeted && params.get('debug') !== '1' && params.get('controls') !== '1') return;
+    try { localStorage.setItem('telegrama_greeted', '1'); } catch (e) {}
     showTelegrama({
       sender: 'Ohverlay Telegrama',
       message: 'Maligayang pagdating sa Telegrama! Handa nang tumanggap ng mga mensahe mula sa iyong pamilya.',
@@ -702,9 +741,9 @@
       emoji: '💌',
       location: 'OHVERLAY SYSTEM'
     });
-  }, 1200);
+  }, 1500);
 
-  initEventSource();
+  initRealtime();
 
   window.showTelegrama = showTelegrama;
 })();

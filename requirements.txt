@@ -6,3 +6,9 @@ shiboken6>=6.11.1
 
 # Input handling
 pynput>=1.8.2
+
+# Logging
+loguru>=0.7.0
+
+# Optional: QR code for Telegrama phone pairing (app works without it)
+segno>=1.6

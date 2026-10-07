@@ -9,29 +9,29 @@ import os
 
 block_cipher = None
 
+# Single source of truth: every overlay HTML (and its bundled assets) is derived
+# from the overlay registry, so the build can never drift from the app.
+_spec_dir = globals().get('SPECPATH', os.path.abspath('.'))
+sys.path.insert(0, _spec_dir)
+from modules.overlay_registry import bundled_data_files
+OVERLAY_DATAS = list(bundled_data_files())
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
         ('config', 'config'),
-        ('fireflies-overlay.html', '.'),
-        ('dragonflies-overlay.html', '.'),
-        ('marketplace-overlays/butterflies-overlay.html', 'marketplace-overlays'),
-        ('marketplace-overlays/butterflies-blue-overlay.html', 'marketplace-overlays'),
-        ('marketplace-overlays/butterflies-yellow-overlay.html', 'marketplace-overlays'),
-        ('marketplace-overlays/butterflies-orange-overlay.html', 'marketplace-overlays'),
-        ('dandelions-overlay.html', '.'),
-        ('marketplace-overlays/cosmos-overlay.html', 'marketplace-overlays'),
-        ('marketplace-overlays/assets/cosmos-sulphureus-flower.png', 'marketplace-overlays/assets'),
-        ('marketplace-overlays/orchid-overlay.html', 'marketplace-overlays'),
-        ('marketplace-overlays/moon-overlay.html', 'marketplace-overlays'),
         ('windows_file_version_info.txt', '.'),
-    ],
+    ] + OVERLAY_DATAS,
     hiddenimports=[
         'ui.tray',
         'modules.overlay_manager',
         'config.settings',
+        'modules.overlay_registry',
+        'modules.telegrama_service',
+        'modules.telegrama_controller',
+        'ui.telegrama_dialog',
         'utils.logger',
         'PySide6.QtCore',
         'PySide6.QtGui',

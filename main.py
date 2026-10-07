@@ -16,7 +16,8 @@ from config.settings import Settings
 from modules.overlay_manager import OverlayManager
 from modules.sticky_notes import StickyNoteManager
 from modules.audit_store import AuditStore
-from modules.telegrama_service import TelegramaService
+from modules.telegrama_controller import TelegramaController
+from ui.telegrama_dialog import TelegramaDialog
 from utils.logger import logger
 
 
@@ -43,17 +44,16 @@ class OhverlayApp:
         # Allow Ctrl+C to exit from terminal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-        # Load configuration
-        self.config = Settings()
+        # Load configuration (writes are debounced so rapid edits coalesce; flushed on quit)
+        self.config = Settings(debounce_ms=400)
 
         # Initialize subsystems
         self.audit_store = AuditStore()
         self.sticky_manager = StickyNoteManager(config=self.config, audit_store=self.audit_store)
         self.master_dashboard = MasterDashboard(sticky_manager=self.sticky_manager, audit_store=self.audit_store)
-        self.telegrama_service = TelegramaService()
-        self.telegrama_service.start()
         self._init_overlay_manager()
         self._init_ui_subsystems()
+        self._init_telegrama()
         self._init_hotkeys()
 
         # First-run onboarding check
@@ -67,6 +67,10 @@ class OhverlayApp:
     def _init_overlay_manager(self):
         """Initialize the HTML overlay system."""
         self.overlay_manager = OverlayManager(config=self.config)
+        # Telegrama is opt-in; the controller must exist before overlays are restored so the
+        # Telegrama card receives the right service URL.
+        self.telegrama_controller = TelegramaController(self.config, overlay_manager=self.overlay_manager)
+        self.telegrama_controller.start_if_enabled()
         if self.overlay_manager.available:
             self.overlay_manager.restore_state()
             logger.info("Overlay Manager ready — HTML overlays available")
@@ -100,6 +104,20 @@ class OhverlayApp:
 
         self.tray.show()
 
+    def _init_telegrama(self):
+        """Attach the tray (for notifications) and the pairing dialog to the controller."""
+        self._telegrama_dialog = None
+        self.telegrama_controller.tray = self.tray
+        self.tray.signals.open_telegrama.connect(self._on_open_telegrama)
+
+    def _on_open_telegrama(self):
+        if self._telegrama_dialog is None:
+            self._telegrama_dialog = TelegramaDialog(self.telegrama_controller)
+        self._telegrama_dialog.refresh()
+        self._telegrama_dialog.show()
+        self._telegrama_dialog.raise_()
+        self._telegrama_dialog.activateWindow()
+
     def _init_hotkeys(self):
         """Set up global hotkeys."""
         self._hotkey_listener = None
@@ -128,7 +146,17 @@ class OhverlayApp:
             self._hotkey_listener = keyboard.GlobalHotKeys(hotkeys)
             self._hotkey_listener.daemon = True
             self._hotkey_listener.start()
-            logger.info(f"Global hotkeys registered ({hotkey_vis}=Toggle Overlays)")
+
+            def on_key_press(key):
+                if key == keyboard.Key.esc:
+                    if hasattr(self, "overlay_manager") and self.overlay_manager.is_rest_mode_active():
+                        QTimer.singleShot(0, self.overlay_manager.handle_escape)
+
+            self._esc_listener = keyboard.Listener(on_press=on_key_press)
+            self._esc_listener.daemon = True
+            self._esc_listener.start()
+
+            logger.info(f"Global hotkeys registered ({hotkey_vis}=Toggle Overlays, Esc 2x=Exit Rest Mode)")
         except ImportError:
             logger.warning("pynput not available — global hotkeys disabled")
         except Exception as e:
@@ -177,14 +205,20 @@ class OhverlayApp:
                 self._hotkey_listener.stop()
             except Exception:
                 pass
-        if hasattr(self, "telegrama_service") and self.telegrama_service:
+        if hasattr(self, "_esc_listener") and self._esc_listener:
             try:
-                self.telegrama_service.stop()
+                self._esc_listener.stop()
+            except Exception:
+                pass
+        if hasattr(self, "telegrama_controller") and self.telegrama_controller:
+            try:
+                self.telegrama_controller.stop(emit=False)
             except Exception:
                 pass
         self.sticky_manager.save_notes()
         self.overlay_manager.close_all()
         self.config.save()
+        self.config.flush()
         self.app.quit()
 
     def run(self):

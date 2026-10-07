@@ -109,27 +109,30 @@ body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--acce
   const bottom = Math.max(1, state.height - Math.min(state.base, state.height * 0.45));
   const right = Math.max(1, state.width - Math.min(state.edge, state.width * 0.25));
   // Single root crown base point right on the taskbar line
-  const baseX = right - (48 * state.fullness + 8) * scale;
+  const baseX = right - (58 * state.fullness + 12) * scale;
   return { scale, bottom, right, baseX };
  }
 
  function geometry(index) {
   const view = scene();
-  const laneOffsets = [24, 70, 118, 168, 218, 268, 318, 368];
   const stemCount = state.stems || 4;
-  const laneX = Math.max(25 * view.scale, view.right - (laneOffsets[index] || (24 + index * 48)) * view.scale * Math.min(1.15, state.fullness));
 
-  // Natural staggered top reaches along the water surface
-  const top = (24 * state.fullness + index * 16) * view.scale;
+  // Stems rise upright from 1 shared root system in a clustered pine-tree grove:
+  // Compact natural spacing (24-30px) between upright columns for 30% fuller whorls
+  const spread = (index - (stemCount - 1) / 2);
+  const stemX = view.baseX + spread * (27 * view.scale * Math.min(1.15, state.fullness));
+
+  // Top reaches: once stems reach the top water surface, they gently arch and creep leftward!
+  const top = (24 * state.fullness + index * 14) * view.scale;
   // Broad, sweeping organic arch into the surface (not a sharp corner)
-  const radius = Math.max(24, Math.min((52 + index * 16) * view.scale, (view.bottom - top) * 0.32));
+  const radius = Math.max(28, Math.min((48 + index * 14) * view.scale, (view.bottom - top) * 0.30));
   const vertical = Math.max(1, view.bottom - top - radius);
   const corner = Math.PI * radius / 2;
-  const left = (34 + index * 20) * view.scale;
-  const horizontal = Math.max(0, laneX - radius - left);
+  const left = (28 + index * 18) * view.scale;
+  const horizontal = Math.max(0, stemX - radius - left);
 
   return {
-   ...view, index, laneX, top, radius, vertical, corner, horizontal,
+   ...view, index, stemX, top, radius, vertical, corner, horizontal,
    initial: (view.bottom - top) / 3,
    topLength: vertical + corner,
    total: vertical + corner + horizontal
@@ -137,7 +140,9 @@ body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--acce
  }
 
  function visibleLength(shape, hours) {
-  return hours <= 8 ? mix(shape.initial, shape.topLength, clamp(hours / 8, 0, 1)) : shape.topLength + shape.horizontal * clamp((hours - 8) / 8, 0, 1);
+  return hours <= 8
+   ? mix(shape.initial, shape.topLength, clamp(hours / 8, 0, 1))
+   : shape.topLength + shape.horizontal * clamp((hours - 8) / 8, 0, 1);
  }
 
  function centerAt(shape, distance) {
@@ -145,35 +150,39 @@ body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--acce
   let horizontal, vertical;
 
   if (amount <= shape.vertical) {
-   const progress = amount / shape.vertical;
+   const progress = amount / Math.max(1, shape.vertical);
 
-   // 1. Root convergence: stems start together at baseX directly on the taskbar line
-   // Graceful fanning out across the lower 38% of height in a smooth S-curve
-   const fan = smooth(progress / 0.38);
-   const rootStemOffset = (shape.index - (state.stems - 1) / 2) * 4 * shape.scale;
-   const startX = shape.baseX + rootStemOffset;
-   const baseLane = mix(startX, shape.laneX, fan);
+    // 1. Single unified root origin with natural spacing across the taskbar line
+    const rootStemOffset = (shape.index - (state.stems - 1) / 2) * 16 * shape.scale;
+    const startX = shape.baseX + rootStemOffset;
 
-   // 2. Fluid natural biological arching (supple organic curves, not steel wires)
-   const arch1 = Math.sin(progress * Math.PI * 1.15 + shape.index * 0.95);
-   const arch2 = Math.sin(progress * Math.PI * 2.1 - shape.index * 0.8);
-   const sign = (shape.index % 2 === 0 ? 1 : -1);
-   const organicCurve = (arch1 * 12 + arch2 * 5) * sign * shape.scale * smooth(progress / 0.20);
+   // Stems rise upright like pine trees, gently fanning out naturally into their column
+   const fan = smooth(progress / 0.42);
+   const colX = mix(startX, shape.stemX, fan);
 
-   horizontal = baseLane + organicCurve;
+   // 2. Supple upright living curves & slight outward splay like pine trees in a grove
+   const stemCount = state.stems || 4;
+   const splayAngle = ((shape.index - (stemCount - 1) / 2) / Math.max(1, stemCount - 1)) * 0.065;
+   const splayDisplacement = Math.sin(splayAngle) * amount;
+
+   // Natural subtle biological curvature swaying gently in the water
+   const curve1 = Math.sin(progress * Math.PI * 1.1 + shape.index * 1.25) * 5.5 * shape.scale * progress;
+   const curve2 = Math.sin(progress * Math.PI * 2.2 + shape.index * 1.85) * 2.5 * shape.scale * progress;
+
+   horizontal = colX + splayDisplacement + curve1 + curve2;
    vertical = shape.bottom - amount;
   } else if (amount <= shape.topLength) {
-   // Seamless, broad sweeping crest into the top surface (smooth continuous derivative)
+   // Smooth, broad sweeping crest into the top surface (floating onto the water surface)
    const t = (amount - shape.vertical) / shape.radius;
    const smoothAngle = smooth(t) * (Math.PI / 2);
-   horizontal = shape.laneX - shape.radius + Math.cos(smoothAngle) * shape.radius;
+   horizontal = shape.stemX - shape.radius + Math.cos(smoothAngle) * shape.radius;
    vertical = shape.top + shape.radius - Math.sin(smoothAngle) * shape.radius;
   } else {
-   // Horizontal stem drifting leftward along the water surface
+   // Floating stem drifting leftward along the water surface at the top of the screen
    const horizDist = amount - shape.topLength;
-   horizontal = shape.laneX - shape.radius - horizDist;
+   horizontal = shape.stemX - shape.radius - horizDist;
    // Gentle floating undulation on the water surface
-   const surfaceFloat = Math.sin(horizDist * 0.016 + shape.index * 1.3) * 3.2 * shape.scale;
+   const surfaceFloat = Math.sin(horizDist * 0.018 + shape.index * 1.3) * 2.8 * shape.scale;
    vertical = shape.top + surfaceFloat;
   }
 
@@ -467,97 +476,105 @@ body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--acce
   };
  }
 
- /* ─── Leaf Tiles ─────────────────────────────────────────────── */
- function makeTile(variant, young) {
-  const tile = document.createElement('canvas'); tile.width = 128; tile.height = 128;
-  const brush = tile.getContext('2d');
-  const leaves = 8 + (variant % 3), seed = variant * 17 + 4;
-  const order = Array.from({ length: leaves }, (_, index) => index).sort((first, second) => Math.sin(first / leaves * Math.PI * 2) - Math.sin(second / leaves * Math.PI * 2));
-  brush.translate(64, 91); brush.scale(2, 2); brush.lineCap = 'round'; brush.lineJoin = 'round';
-  for (const leaf of order) {
-   const angle = leaf / leaves * Math.PI * 2 + noise(seed) * 0.9, depth = Math.sin(angle), side = Math.cos(angle);
-   const spread = 20 + noise(seed + leaf) * 7, endX = side * spread, endY = -18 + depth * 7 - noise(seed + leaf + 31) * 5;
-   const middleX = endX * 0.45, middleY = endY * 0.48;
-   const hue = young ? 78 + noise(seed + leaf) * 9 : 87 + noise(seed + leaf) * 12;
-   const light = (young ? 54 : 32) + (depth + 1) * 8 + noise(seed + leaf + 11) * 7;
-   brush.beginPath(); brush.moveTo(0, 0); brush.quadraticCurveTo(middleX * 0.5, middleY * 0.25, middleX, middleY);
-   const length = Math.hypot(endX, endY), normalX = -endY / length, normalY = endX / length;
-   for (const fork of [-1, 1]) {
-    const branchX = endX * 0.76 + normalX * fork * 2.5, branchY = endY * 0.76 + normalY * fork * 2.5;
-    brush.moveTo(middleX, middleY); brush.quadraticCurveTo((middleX + branchX) * 0.5, branchY + 2, branchX, branchY);
-    for (const tip of [-1, 1]) {
-     const tipX = endX + normalX * (fork * 4.6 + tip * 2), tipY = endY + normalY * (fork * 4.6 + tip * 2) - 2;
-     brush.moveTo(branchX, branchY); brush.quadraticCurveTo((branchX + tipX) * 0.5, tipY + 2, tipX, tipY);
+  /* ─── Leaf Tiles: Dense Pine Starburst Whorls ──────────────── */
+  function makeTile(variant, young) {
+   const tile = document.createElement('canvas'); tile.width = 180; tile.height = 180;
+   const brush = tile.getContext('2d');
+   const leaves = 16 + (variant % 4), seed = variant * 19 + 7;
+   const order = Array.from({ length: leaves }, (_, index) => index).sort((first, second) => Math.sin(first / leaves * Math.PI * 2) - Math.sin(second / leaves * Math.PI * 2));
+   brush.translate(90, 122); brush.lineCap = 'round'; brush.lineJoin = 'round';
+   for (const leaf of order) {
+    const angle = leaf / leaves * Math.PI * 2 + (noise(seed + leaf) - 0.5) * 0.32, depth = Math.sin(angle), side = Math.cos(angle);
+    const spread = 31 + noise(seed + leaf * 3) * 10, endX = side * spread, endY = -18 + depth * 10.4 - noise(seed + leaf + 17) * 5.2;
+    const middleX = endX * 0.48, middleY = endY * 0.52;
+    const hue = young ? 78 + noise(seed + leaf) * 10 : 86 + noise(seed + leaf) * 12;
+    const sat = young ? 75 : 62;
+    const light = (young ? 50 : 32) + (depth + 1) * 9 + noise(seed + leaf + 11) * 6;
+    brush.beginPath(); brush.moveTo(0, 0); brush.quadraticCurveTo(middleX * 0.6, middleY * 0.3, middleX, middleY);
+    const length = Math.hypot(endX, endY) || 1, normalX = -endY / length, normalY = endX / length;
+    for (const fork of [-1, 1]) {
+     const branchX = endX * 0.78 + normalX * fork * 3.6, branchY = endY * 0.78 + normalY * fork * 3.6;
+     brush.moveTo(middleX, middleY); brush.quadraticCurveTo((middleX + branchX) * 0.5, branchY + 2.0, branchX, branchY);
+     for (const tip of [-1, 1]) {
+      const tipX = endX + normalX * (fork * 6.2 + tip * 2.8), tipY = endY + normalY * (fork * 6.2 + tip * 2.8) - 2.0;
+      brush.moveTo(branchX, branchY); brush.quadraticCurveTo((branchX + tipX) * 0.5, tipY + 2.0, tipX, tipY);
+     }
+    }
+    brush.strokeStyle = `hsla(${hue},${sat}%,${light}%,${depth < 0 ? 0.72 : 0.94})`;
+    brush.lineWidth = depth < 0 ? 0.88 : 1.20; brush.stroke();
+    if (depth > -0.2) {
+     brush.strokeStyle = `hsla(${hue - 5},80%,${light + 14}%,.35)`; brush.lineWidth = 0.38; brush.stroke();
     }
    }
-   brush.strokeStyle = `hsla(${hue},${young ? 76 : 60}%,${light}%,${depth < 0 ? 0.77 : 0.95})`;
-   brush.lineWidth = depth < 0 ? 0.62 : 0.82; brush.stroke();
-   if (depth > -0.3) {
-    brush.strokeStyle = `hsla(${hue - 6},75%,${light + 12}%,.32)`; brush.lineWidth = 0.24; brush.stroke();
-   }
+   brush.beginPath(); brush.arc(0, 0, 2.8, 0, Math.PI * 2);
+   brush.fillStyle = young ? '#88b848' : '#4e752c'; brush.fill();
+   return tile;
   }
-  brush.beginPath(); brush.moveTo(0, 3); brush.lineTo(0, -8);
-  brush.strokeStyle = young ? '#b0d268' : '#638c39'; brush.lineWidth = 0.75; brush.stroke();
-  return tile;
- }
 
- function buildTiles() {
-  state.tiles = [false, true].map(young => Array.from({ length: 12 }, (_, index) => makeTile(index, young)));
- }
+  function buildTiles() {
+   state.tiles = [false, true].map(young => Array.from({ length: 12 }, (_, index) => makeTile(index, young)));
+  }
 
- /* ─── Drawing ─────────────────────────────────────────────────── */
- function drawStem(index, hours) {
-  const shape = geometry(index), length = visibleLength(shape, hours);
-  const spacing = 11 * shape.scale / state.fullness;
-  const points = [];
-  const step = 4 * shape.scale;
-  for (let distance = 0; distance < length; distance += step) points.push(pointAt(shape, distance));
-  points.push(pointAt(shape, length));
+  /* ─── Drawing ─────────────────────────────────────────────────── */
+  function drawStem(index, hours) {
+   const shape = geometry(index), length = visibleLength(shape, hours);
+   const spacing = 7.0 * shape.scale / state.fullness;
+   const points = [];
+   const step = 4 * shape.scale;
+   for (let distance = 0; distance < length; distance += step) points.push(pointAt(shape, distance));
+   points.push(pointAt(shape, length));
 
-  if (points.length >= 2) {
-   // Tapered fluid botanical stem spine (batched continuous sections)
-   const n = points.length;
-   const idx1 = Math.floor(n * 0.35);
-   const idx2 = Math.floor(n * 0.70);
-   const sections = [
-    { start: 0, end: idx1, width: 2.3 * shape.scale },
-    { start: idx1, end: idx2, width: 1.5 * shape.scale },
-    { start: idx2, end: n - 1, width: 0.85 * shape.scale }
-   ];
+   if (points.length >= 2) {
+    // Tapered fluid botanical stem spine (batched continuous sections)
+    const n = points.length;
+    const idx1 = Math.floor(n * 0.35);
+    const idx2 = Math.floor(n * 0.70);
+    const sections = [
+     { start: 0, end: idx1, width: 3.0 * shape.scale },
+     { start: idx1, end: idx2, width: 2.0 * shape.scale },
+     { start: idx2, end: n - 1, width: 1.1 * shape.scale }
+    ];
 
-   context.lineCap = 'round';
-   context.lineJoin = 'round';
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
 
-   for (const sec of sections) {
-    context.beginPath();
-    context.moveTo(points[sec.start].x, points[sec.start].y);
-    for (let i = sec.start + 1; i <= sec.end; i++) {
-     context.lineTo(points[i].x, points[i].y);
+    for (const sec of sections) {
+     context.beginPath();
+     context.moveTo(points[sec.start].x, points[sec.start].y);
+     for (let i = sec.start + 1; i <= sec.end; i++) {
+      context.lineTo(points[i].x, points[i].y);
+     }
+     context.strokeStyle = index % 2 ? '#41662c' : '#527533';
+     context.lineWidth = sec.width;
+     context.stroke();
+
+     context.strokeStyle = '#a6c66655';
+     context.lineWidth = sec.width * 0.45;
+     context.stroke();
     }
-    context.strokeStyle = index % 2 ? '#41662c' : '#527533';
-    context.lineWidth = sec.width;
-    context.stroke();
-
-    context.strokeStyle = '#a6c66655';
-    context.lineWidth = sec.width * 0.45;
-    context.stroke();
    }
-  }
 
-  // Draw fine hornwort leaf whorls
-  const start = 9 * shape.scale;
-  for (let node = 0, distance = start; distance < length; node++, distance = start + node * spacing) {
-   const remaining = length - distance, development = smooth(remaining / (19 * shape.scale));
-   if (development <= 0) continue;
-   const point = pointAt(shape, distance), young = remaining < 55 * shape.scale;
-   const variation = 0.87 + noise(node * 11 + index * 87) * 0.23;
-   const leafScale = shape.scale * variation * state.fullness * (0.28 + 0.72 * development) * (0.35 + 0.65 * smooth(distance / (55 * shape.scale)));
-   context.save(); context.translate(point.x, point.y);
-   context.rotate(point.angle + (0.5 - noise(node * 7 + index * 43)) * 0.14);
-   context.globalAlpha = state.opacity * (0.35 + 0.65 * development);
-   context.drawImage(state.tiles[young ? 1 : 0][(node + index * 5) % 12], -32 * leafScale, -45.5 * leafScale, 64 * leafScale, 64 * leafScale);
-   context.restore();
-  }
+   // Draw dense hornwort starburst whorls in a pine-tree conical profile
+   const start = 8 * shape.scale;
+   for (let node = 0, distance = start; distance < length; node++, distance = start + node * spacing) {
+    const remaining = length - distance, development = smooth(remaining / (18 * shape.scale));
+    if (development <= 0) continue;
+    const point = pointAt(shape, distance), young = remaining < 45 * shape.scale;
+    const variation = 0.90 + noise(node * 11 + index * 87) * 0.20;
+
+    // Pine-tree conical profile: full in the midsection, tighter at the apex crown
+    const heightRatio = clamp(distance / shape.vertical, 0, 1);
+    const pineConeProfile = (heightRatio < 0.25)
+      ? mix(0.70, 1.12, smooth(heightRatio / 0.25))
+      : mix(1.12, 0.40, smooth((heightRatio - 0.25) / 0.75));
+
+    const leafScale = shape.scale * variation * state.fullness * pineConeProfile * (0.35 + 0.65 * development) * 1.30;
+    context.save(); context.translate(point.x, point.y);
+    context.rotate(point.angle + (0.5 - noise(node * 7 + index * 43)) * 0.12);
+    context.globalAlpha = state.opacity * (0.45 + 0.55 * development);
+    context.drawImage(state.tiles[young ? 1 : 0][(node + index * 5) % 12], -45 * leafScale, -61 * leafScale, 90 * leafScale, 90 * leafScale);
+    context.restore();
+   }
 
   // Draw tiny, soothing Christmas micro LED fairy lights if enabled
   if (state.xmasLights) {
@@ -567,7 +584,7 @@ body.day{--ink:#243c29;--muted:#566e55;--line:#3c5d3533;--panel:#e4ead9f2;--acce
   const tip = pointAt(shape, length);
   context.save(); context.translate(tip.x, tip.y); context.rotate(tip.angle);
   context.fillStyle = '#cae290'; context.beginPath();
-  context.ellipse(0, 0, 1.3 * shape.scale, 3.2 * shape.scale, 0, 0, Math.PI * 2); context.fill(); context.restore();
+  context.ellipse(0, 0, 1.7 * shape.scale, 4.2 * shape.scale, 0, 0, Math.PI * 2); context.fill(); context.restore();
  }
 
  const XMAS_PALETTES = {

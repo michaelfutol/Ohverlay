@@ -5,11 +5,11 @@ Glowing orbs with dynamic light trails and particle bursts
 
 import math
 import random
-from typing import List, Tuple
+from typing import List
 from dataclasses import dataclass, field
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
-    QPainter, QPainterPath, QColor, QRadialGradient, 
+    QPainter, QColor, QRadialGradient, 
     QLinearGradient, QPen, QBrush
 )
 from PySide6.QtWidgets import QWidget

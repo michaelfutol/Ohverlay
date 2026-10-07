@@ -4,10 +4,9 @@ Provides a minimal fallback right-click menu and left-click activation for the C
 """
 
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QRadialGradient, QPen, QDesktopServices
-from PySide6.QtCore import Qt, Signal, QObject, QUrl
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QRadialGradient, QPen
+from PySide6.QtCore import Qt, Signal, QObject
 import os
-from utils.logger import logger
 
 
 class TraySignals(QObject):
@@ -17,6 +16,8 @@ class TraySignals(QObject):
     new_sticky_note = Signal()
     show_welcome = Signal()
     toggle_visibility = Signal()
+    toggle_rest_mode = Signal()
+    open_telegrama = Signal()
     quit_app = Signal()
     debug_canvas_extents = Signal()
 
@@ -116,11 +117,14 @@ class SystemTray(QSystemTrayIcon):
         visibility_action = menu.addAction("Toggle All Overlays (Ctrl+Alt+H)")
         visibility_action.triggered.connect(self.signals.toggle_visibility.emit)
 
+        rest_action = menu.addAction("🌙 Rest Mode (Pitch Black · Esc 2x)")
+        rest_action.triggered.connect(self._on_rest_mode_triggered)
+
         welcome_action = menu.addAction("Show Welcome Guide")
         welcome_action.triggered.connect(self.signals.show_welcome.emit)
 
-        telegrama_action = menu.addAction("Telegrama Mobile Dispatcher ✈️")
-        telegrama_action.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("http://localhost:54321/telegrama")))
+        telegrama_action = menu.addAction("Telegrama — Phone Dispatch ✈️")
+        telegrama_action.triggered.connect(self.signals.open_telegrama.emit)
 
         if os.environ.get("OHVERLAY_DEBUG") == "1":
             debug_action = menu.addAction("Debug: Show Canvas Extent")
@@ -137,3 +141,7 @@ class SystemTray(QSystemTrayIcon):
         """Handle tray icon clicks."""
         if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
             self.signals.open_control_center.emit()
+
+    def _on_rest_mode_triggered(self):
+        if self.overlay_manager:
+            self.overlay_manager.toggle_rest_mode()

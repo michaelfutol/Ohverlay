@@ -6,7 +6,7 @@ Floating crystals, polygons, sacred geometry
 import math
 import random
 from typing import List, Tuple
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtCore import Qt
 from PySide6.QtGui import (
     QPainter, QPainterPath, QColor, QLinearGradient, 
     QRadialGradient, QConicalGradient, QPen, QBrush

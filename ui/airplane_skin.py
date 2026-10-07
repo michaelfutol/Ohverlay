@@ -5,8 +5,8 @@ Realistic aircraft with contrails and navigation lights
 
 import math
 import random
-from typing import List, Tuple
-from dataclasses import dataclass, field
+from typing import List
+from dataclasses import dataclass
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
     QPainter, QPainterPath, QColor, QLinearGradient, 

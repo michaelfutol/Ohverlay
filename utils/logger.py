@@ -27,7 +27,10 @@ def _get_candidate_log_dirs():
         if exe_dir:
             candidates.append(exe_dir)
     else:
-        candidates.append(".")
+        # Development: keep logs out of the repo checkout.
+        home = os.path.expanduser("~")
+        if home and home != "~":
+            candidates.append(os.path.join(home, ".ohverlay", "logs"))
 
     # Final fallback for any environment.
     candidates.append(tempfile.gettempdir())
