@@ -11,10 +11,10 @@ from datetime import datetime, timedelta
 
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
 from PySide6.QtGui import (
-    QAction,
     QActionGroup,
     QColor,
     QCursor,
+    QFont,
     QIcon,
     QLinearGradient,
     QPainter,
@@ -23,13 +23,16 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QMenu,
     QPushButton,
+    QScrollArea,
     QSizeGrip,
     QTextEdit,
     QVBoxLayout,
@@ -39,6 +42,7 @@ from PySide6.QtWidgets import (
 from modules.card_themes import (
     DEFAULT_FONT_PRESET_ID,
     DEFAULT_NOTE_THEME_ID,
+    build_font,
     get_font_preset,
     get_note_theme,
     list_font_presets,
@@ -78,6 +82,19 @@ def _format_seconds(total_seconds):
     secs = seconds % 60
     prefix = "-" if total_seconds < 0 else ""
     return f"{prefix}{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def _format_short_duration(total_seconds):
+    seconds = abs(int(total_seconds))
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    if hours > 0:
+        return f"{hours}h {minutes:02d}m" if minutes > 0 else f"{hours}h"
+    elif minutes > 0:
+        return f"{minutes}m"
+    else:
+        return f"{secs}s"
 
 
 def _parse_duration_input(value):
@@ -267,6 +284,116 @@ class StickyFrame(QFrame):
         painter.end()
 
 
+class TaskLineEdit(QLineEdit):
+    """Custom single-line editor for tasks that handles Enter (add next) and Backspace (delete empty)."""
+
+    def __init__(self, row_widget, parent=None):
+        super().__init__(parent)
+        self.row_widget = row_widget
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.row_widget.owner._add_task_below(self.row_widget.task.get("id"))
+            event.accept()
+            return
+        elif event.key() == Qt.Key_Backspace and not self.text():
+            self.row_widget.owner._remove_task(self.row_widget.task.get("id"), focus_previous=True)
+            event.accept()
+            return
+        elif event.key() == Qt.Key_Up:
+            self.row_widget.owner._focus_task_relative(self.row_widget.task.get("id"), -1)
+            event.accept()
+            return
+        elif event.key() == Qt.Key_Down:
+            self.row_widget.owner._focus_task_relative(self.row_widget.task.get("id"), 1)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
+class TaskRowWidget(QWidget):
+    """A single task row in the checklist with checkbox, strikethrough text, duration badge, and delete button."""
+
+    def __init__(self, owner, task: dict, parent=None):
+        super().__init__(parent)
+        self.owner = owner
+        self.task = task
+        self._build_ui()
+        self.refresh_display()
+
+    def _build_ui(self):
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(5)
+
+        self.checkbox = QCheckBox(self)
+        self.checkbox.setCursor(QCursor(Qt.PointingHandCursor))
+        self.checkbox.setChecked(bool(self.task.get("completed", False)))
+        self.checkbox.toggled.connect(self._on_toggled)
+        layout.addWidget(self.checkbox)
+
+        self.line_edit = TaskLineEdit(self)
+        self.line_edit.setText(self.task.get("text", ""))
+        self.line_edit.setPlaceholderText("Task description...")
+        self.line_edit.textChanged.connect(self._on_text_changed)
+        layout.addWidget(self.line_edit, 1)
+
+        self.duration_label = QLabel(self)
+        self.duration_label.setStyleSheet("font-size: 10px; font-weight: bold;")
+        self.duration_label.hide()
+        layout.addWidget(self.duration_label)
+
+        self.del_btn = QPushButton("×", self)
+        self.del_btn.setFixedSize(16, 16)
+        self.del_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.del_btn.setToolTip("Delete task")
+        self.del_btn.clicked.connect(self._on_delete)
+        self.del_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: rgba(130, 130, 130, 0.5);
+                font-size: 13px;
+                font-weight: bold;
+                padding: 0;
+            }
+            QPushButton:hover {
+                color: #ff4d4f;
+            }
+        """)
+        layout.addWidget(self.del_btn)
+
+    def _on_toggled(self, checked):
+        self.owner._on_task_toggled(self.task.get("id"), checked)
+
+    def _on_text_changed(self, text):
+        self.task["text"] = text
+        self.owner._sync_text_from_tasks()
+        self.owner._save_state()
+
+    def _on_delete(self):
+        self.owner._remove_task(self.task.get("id"))
+
+    def refresh_display(self):
+        completed = bool(self.task.get("completed", False))
+        self.checkbox.blockSignals(True)
+        self.checkbox.setChecked(completed)
+        self.checkbox.blockSignals(False)
+
+        font = self.line_edit.font()
+        font.setStrikeOut(completed)
+        self.line_edit.setFont(font)
+
+        dur = self.task.get("duration_text", "")
+        if completed and dur:
+            self.duration_label.setText(dur)
+            self.duration_label.show()
+        else:
+            self.duration_label.hide()
+
+        self.owner._apply_task_row_theme(self)
+
+
 class StickyNoteWidget(QWidget):
     def __init__(self, manager, state, parent=None):
         super().__init__(parent)
@@ -303,6 +430,7 @@ class StickyNoteWidget(QWidget):
         self._resize_mode = None
         self._resize_start_pos = None
         self._resize_start_size = None
+        self._task_rows = {}
 
         self.setWindowFlags(self._base_window_flags)
         self.setAttribute(Qt.WA_DeleteOnClose, False)
@@ -359,12 +487,42 @@ class StickyNoteWidget(QWidget):
 
         frame_layout.addLayout(header)
 
+        # ── Project / Note Title (e.g. BACACAY) ──
+        self.project_title_edit = QLineEdit()
+        self.project_title_edit.setObjectName("stickyProjectTitle")
+        self.project_title_edit.setPlaceholderText("Title / Project (e.g. BACACAY)")
+        self.project_title_edit.textChanged.connect(self._on_title_changed)
+        frame_layout.addWidget(self.project_title_edit)
+
+        # ── Checklist Scroll Area ──
+        self.checklist_scroll = QScrollArea()
+        self.checklist_scroll.setObjectName("stickyChecklistScroll")
+        self.checklist_scroll.setWidgetResizable(True)
+        self.checklist_scroll.setFrameShape(QFrame.NoFrame)
+        self.checklist_scroll.setStyleSheet("background: transparent; border: none;")
+        self.checklist_container = QWidget()
+        self.checklist_container.setStyleSheet("background: transparent;")
+        self.checklist_layout = QVBoxLayout(self.checklist_container)
+        self.checklist_layout.setContentsMargins(0, 0, 0, 0)
+        self.checklist_layout.setSpacing(2)
+        self.checklist_scroll.setWidget(self.checklist_container)
+        frame_layout.addWidget(self.checklist_scroll, 1)
+
+        # ── Add Task Button ──
+        self.add_task_btn = QPushButton("➕ Add task")
+        self.add_task_btn.setObjectName("stickyAddTaskBtn")
+        self.add_task_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.add_task_btn.clicked.connect(lambda: self._add_task_below())
+        frame_layout.addWidget(self.add_task_btn)
+
+        # ── Freeform Text Edit ──
         self.text_edit = QTextEdit()
         self.text_edit.setObjectName("stickyText")
         self.text_edit.setPlaceholderText("Type your note here...")
         self.text_edit.textChanged.connect(self._on_text_changed)
         frame_layout.addWidget(self.text_edit, 1)
 
+        # ── Locked Text Label (Floating Lock) ──
         self.locked_text_label = QLabel("")
         self.locked_text_label.setObjectName("stickyLockedText")
         self.locked_text_label.setWordWrap(True)
@@ -444,12 +602,24 @@ class StickyNoteWidget(QWidget):
         if "font_size_px" not in self.state:
             scale = float(self.state.get("font_scale", 1.0))
             self.state["font_size_px"] = max(11, int(15 * scale))
-        self.title_label.setText(self.state.get("title", "Sticky Note"))
+        self.state.setdefault("note_mode", "checklist")
+
+        self._sync_tasks_from_text()
+
+        title_text = self.state.get("title", "Sticky Note")
+        self.title_label.setText(title_text)
+        self.project_title_edit.blockSignals(True)
+        self.project_title_edit.setText(title_text)
+        self.project_title_edit.blockSignals(False)
+
         self.text_edit.blockSignals(True)
         self.text_edit.setPlainText(self.state.get("text", ""))
         self.text_edit.blockSignals(False)
+
         self.resize(max(100, int(self.state.get("width", 240))), max(50, int(self.state.get("height", 260))))
         self.move(int(self.state.get("x", 90)), int(self.state.get("y", 90)))
+
+        self._refresh_checklist_ui()
         self._apply_theme()
         self._refresh_action_button()
         self._update_timer_label()
@@ -654,16 +824,96 @@ class StickyNoteWidget(QWidget):
         )
         self.text_edit.viewport().setStyleSheet(f"background: {editor_bg};")
         self.text_edit.setFrameStyle(QFrame.NoFrame if float_on_lock else QFrame.StyledPanel)
-        self.text_edit.setVisible(not float_on_lock)
-        self.locked_text_label.setVisible(float_on_lock)
-        self.locked_text_label.setText(self.state.get("text", ""))
+
+        # ── Project Title & Checklist Styling ──
+        title_font = build_font(title_font_family, max(12.0, font_size_px * 0.95), QFont.Bold)
+        self.project_title_edit.setFont(title_font)
+        self.project_title_edit.setStyleSheet(f"""
+            QLineEdit#stickyProjectTitle {{
+                background: transparent;
+                border: none;
+                border-bottom: 1px solid {_rgba(theme.divider, 0.4)};
+                color: {_hex_rgb(theme.text_head)};
+                padding: 2px 4px 4px 4px;
+                font-weight: bold;
+                letter-spacing: 0.5px;
+            }}
+            QLineEdit#stickyProjectTitle:focus {{
+                border-bottom: 1.5px solid {_rgba(theme.accent, 0.8)};
+            }}
+        """)
+
+        self.add_task_btn.setStyleSheet(f"""
+            QPushButton#stickyAddTaskBtn {{
+                background: transparent;
+                border: 1px dashed {_rgba(theme.divider, 0.6)};
+                border-radius: 4px;
+                color: {_rgba(theme.text_label, 0.75)};
+                font-family: "{label_font_family}";
+                font-size: 11px;
+                padding: 4px 8px;
+                text-align: left;
+            }}
+            QPushButton#stickyAddTaskBtn:hover {{
+                background: {_rgba(theme.button_hover, 0.3)};
+                border-color: {_rgba(theme.accent, 0.8)};
+                color: {_hex_rgb(theme.text_head)};
+            }}
+        """)
+
+        note_mode = self.state.get("note_mode", "checklist")
+        if float_on_lock:
+            self.project_title_edit.hide()
+            self.checklist_scroll.hide()
+            self.add_task_btn.hide()
+            self.text_edit.hide()
+            self.locked_text_label.show()
+            self.locked_text_label.setText(self.state.get("text", ""))
+        else:
+            self.locked_text_label.hide()
+            if note_mode == "checklist":
+                self.project_title_edit.show()
+                self.checklist_scroll.show()
+                self.add_task_btn.show()
+                self.text_edit.hide()
+            else:
+                self.project_title_edit.hide()
+                self.checklist_scroll.hide()
+                self.add_task_btn.hide()
+                self.text_edit.show()
+
+        for row_w in getattr(self, "_task_rows", {}).values():
+            self._apply_task_row_theme(row_w)
+
         self.meta_label.setVisible(not float_on_lock)
         self._unlock_chip.apply_theme(theme)
 
     def _tick_visuals(self):
         self._visual_phase = (self._visual_phase + 0.32) % (math.pi * 2.0)
         if self._overdue_active:
-            self._apply_theme()
+            self._update_pulse_visuals()
+
+    def _update_pulse_visuals(self):
+        """Lightweight pulse update — only touches opacity and glow, no stylesheet rebuild."""
+        theme = get_note_theme(self.state.get("theme_id", DEFAULT_NOTE_THEME_ID))
+        locked = bool(self.state.get("locked", False))
+        float_on_lock = locked and theme.floating_lock
+        is_paper_theme = theme.theme_id.startswith("sticky_paper_") or theme.theme_id.startswith("neon_postit_")
+        base_opacity = max(0.15, min(1.0, float(self.state.get("opacity", 0.95))))
+
+        pulse_factor = (math.sin(self._visual_phase) + 1.0) / 2.0
+        glow_spec = _mix_rgb((120, 235, 255), (255, 224, 165), pulse_factor * 0.45)
+
+        pulse_drop = 0.018 + (0.028 * pulse_factor)
+        self.setWindowOpacity(max(0.15, min(1.0, base_opacity - pulse_drop)))
+
+        if is_paper_theme and not float_on_lock:
+            pass  # paper theme uses fixed shadow
+        else:
+            glow_alpha = int(118 + (42 * pulse_factor))
+            glow_blur = int(24 + (18 * pulse_factor))
+            self._glow.setColor(qcolor(glow_spec, 92 if float_on_lock else glow_alpha))
+            self._glow.setBlurRadius(24 if float_on_lock else glow_blur)
 
     def _refresh_action_button(self):
         locked = self.state.get("locked", False)
@@ -758,6 +1008,17 @@ class StickyNoteWidget(QWidget):
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, locked)
         self.text_edit.setReadOnly(locked)
+        if hasattr(self, "project_title_edit"):
+            self.project_title_edit.setReadOnly(locked)
+        if hasattr(self, "add_task_btn"):
+            self.add_task_btn.setEnabled(not locked)
+            self.add_task_btn.setVisible(not locked and self.state.get("note_mode", "checklist") == "checklist")
+        if hasattr(self, "_task_rows"):
+            for row in self._task_rows.values():
+                if hasattr(row, "line_edit"):
+                    row.line_edit.setReadOnly(locked)
+                if hasattr(row, "del_btn"):
+                    row.del_btn.setVisible(not locked)
         self.close_btn.setVisible(not locked)
         self.menu_btn.setVisible(not locked)
         self.smaller_btn.setVisible(not locked)
@@ -803,7 +1064,330 @@ class StickyNoteWidget(QWidget):
     def _on_text_changed(self):
         self.state["text"] = self.text_edit.toPlainText()
         self.locked_text_label.setText(self.state["text"])
+        if self.state.get("note_mode") == "freeform":
+            self._sync_tasks_from_text()
         self._save_state()
+
+    def _set_note_mode(self, mode):
+        self.state["note_mode"] = mode
+        if mode == "checklist":
+            self._sync_tasks_from_text()
+            self._refresh_checklist_ui()
+        else:
+            self._sync_text_from_tasks()
+        self._apply_theme()
+        self._save_state()
+
+    def _on_title_changed(self, text):
+        self.state["title"] = text
+        self.title_label.setText(text)
+        self._save_state()
+
+    def _sync_tasks_from_text(self):
+        raw_text = self.state.get("text", "").strip()
+        existing_tasks = self.state.get("tasks")
+        if existing_tasks and isinstance(existing_tasks, list) and len(existing_tasks) > 0:
+            return
+
+        if not raw_text:
+            self.state["tasks"] = [
+                {
+                    "id": f"task_{uuid.uuid4().hex[:8]}",
+                    "text": "",
+                    "completed": False,
+                    "start_time": _now_iso(),
+                    "finish_time": "",
+                    "duration_seconds": 0,
+                    "duration_text": "",
+                }
+            ]
+            return
+
+        lines = raw_text.splitlines()
+        tasks = []
+        first_idx = 0
+        current_title = self.state.get("title", "Sticky Note")
+        if lines and current_title in ("Sticky Note", "", None):
+            first_line = lines[0].strip()
+            if not re.match(r"^(\d+[\.\)]|[-*•]|\[[ xX]\])", first_line):
+                self.state["title"] = first_line
+                self.title_label.setText(first_line)
+                if hasattr(self, "project_title_edit"):
+                    self.project_title_edit.blockSignals(True)
+                    self.project_title_edit.setText(first_line)
+                    self.project_title_edit.blockSignals(False)
+                first_idx = 1
+
+        for line in lines[first_idx:]:
+            line = line.strip()
+            if not line:
+                continue
+            completed = False
+            duration_text = ""
+            if line.startswith("[x]") or line.startswith("[X]"):
+                completed = True
+                line = line[3:].strip()
+            elif line.startswith("[ ]"):
+                completed = False
+                line = line[3:].strip()
+
+            dur_match = re.search(r"\(([\d]+[hms](?:\s*[\d]+[ms])?)\)$", line)
+            if dur_match:
+                duration_text = dur_match.group(1)
+                line = line[:dur_match.start()].strip()
+
+            task_id = f"task_{uuid.uuid4().hex[:8]}"
+            tasks.append({
+                "id": task_id,
+                "text": line,
+                "completed": completed,
+                "start_time": self.state.get("created_at", _now_iso()),
+                "finish_time": _now_iso() if completed else "",
+                "duration_seconds": 0,
+                "duration_text": duration_text,
+            })
+
+        self.state["tasks"] = tasks if tasks else [
+            {
+                "id": f"task_{uuid.uuid4().hex[:8]}",
+                "text": "",
+                "completed": False,
+                "start_time": _now_iso(),
+                "finish_time": "",
+                "duration_seconds": 0,
+                "duration_text": "",
+            }
+        ]
+
+    def _sync_text_from_tasks(self):
+        lines = []
+        for t in self.state.get("tasks", []):
+            mark = "[x] " if t.get("completed") else "[ ] "
+            txt = t.get("text", "")
+            dur = f" ({t['duration_text']})" if t.get("duration_text") else ""
+            lines.append(f"{mark}{txt}{dur}")
+        full_text = "\n".join(lines)
+        self.state["text"] = full_text
+        self.text_edit.blockSignals(True)
+        self.text_edit.setPlainText(full_text)
+        self.text_edit.blockSignals(False)
+        self.locked_text_label.setText(full_text)
+
+    def _refresh_checklist_ui(self):
+        if not hasattr(self, "checklist_layout"):
+            return
+        while self.checklist_layout.count() > 0:
+            child = self.checklist_layout.takeAt(0)
+            w = child.widget()
+            if w:
+                w.deleteLater()
+
+        self._task_rows = {}
+        for task in self.state.get("tasks", []):
+            row_w = TaskRowWidget(self, task, self.checklist_container)
+            self.checklist_layout.addWidget(row_w)
+            self._task_rows[task.get("id")] = row_w
+
+        self.checklist_layout.addStretch(1)
+
+    def _apply_task_row_theme(self, row: TaskRowWidget):
+        theme = get_note_theme(self.state.get("theme_id", DEFAULT_NOTE_THEME_ID))
+        font_preset = get_font_preset(self.state.get("font_preset", DEFAULT_FONT_PRESET_ID))
+        font_scale = max(0.75, min(2.5, float(self.state.get("font_scale", 1.0))))
+        font_size_px = int(self.state.get("font_size_px") or max(11, int(15 * font_scale)))
+        font_family = font_preset.value_family or theme.value_font_family
+
+        completed = bool(row.task.get("completed", False))
+
+        row_font = build_font(font_family, font_size_px * 0.72, QFont.Normal)
+        row_font.setStrikeOut(completed)
+        row.line_edit.setFont(row_font)
+
+        if completed:
+            text_color = "rgba(110, 110, 110, 0.65)"
+            line_edit_css = f"""
+                QLineEdit {{
+                    background: transparent;
+                    border: none;
+                    color: {text_color};
+                    padding: 1px 2px;
+                    text-decoration: line-through;
+                }}
+                QLineEdit:focus {{
+                    border-bottom: 1px dashed rgba(100, 100, 100, 0.3);
+                }}
+            """
+        else:
+            text_color = _hex_rgb(theme.text_head)
+            line_edit_css = f"""
+                QLineEdit {{
+                    background: transparent;
+                    border: none;
+                    color: {text_color};
+                    padding: 1px 2px;
+                }}
+                QLineEdit:focus {{
+                    border-bottom: 1px solid {_rgba(theme.accent, 0.6)};
+                }}
+            """
+        row.line_edit.setStyleSheet(line_edit_css)
+
+        accent_color = _hex_rgb(theme.accent)
+        border_color = _rgba(theme.border, 0.8)
+        row.checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                spacing: 5px;
+            }}
+            QCheckBox::indicator {{
+                width: 15px;
+                height: 15px;
+                border: 1.5px solid {border_color};
+                border-radius: 3px;
+                background: rgba(255, 255, 255, 0.35);
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {accent_color};
+                background: rgba(255, 255, 255, 0.60);
+            }}
+            QCheckBox::indicator:checked {{
+                border-color: {accent_color};
+                background: {accent_color};
+            }}
+        """)
+
+        dur_color = _rgba(theme.text_label, 0.85)
+        dur_bg = _rgba(theme.button_dismiss, 0.6)
+        row.duration_label.setStyleSheet(f"""
+            QLabel {{
+                font-size: 10px;
+                font-weight: bold;
+                color: {dur_color};
+                background: {dur_bg};
+                border-radius: 4px;
+                padding: 1px 5px;
+            }}
+        """)
+
+    def _on_task_toggled(self, task_id, is_checked):
+        task = None
+        for t in self.state.get("tasks", []):
+            if t.get("id") == task_id:
+                task = t
+                break
+        if not task:
+            return
+
+        now = datetime.now()
+        now_iso = now.isoformat(timespec="seconds")
+        task["completed"] = bool(is_checked)
+
+        timer_mode = self.state.get("timer_mode", "off")
+        timer_active = (timer_mode in ("elapsed", "countdown"))
+
+        if is_checked:
+            task["finish_time"] = now_iso
+            start_dt = _parse_dt(task.get("start_time"))
+            if not start_dt:
+                start_dt = _parse_dt(self.state.get("created_at")) or now
+                task["start_time"] = start_dt.isoformat(timespec="seconds")
+
+            duration_sec = max(1, int((now - start_dt).total_seconds()))
+            task["duration_seconds"] = duration_sec
+
+            if timer_active:
+                task["duration_text"] = _format_short_duration(duration_sec)
+            else:
+                task["duration_text"] = ""
+
+            if self.manager and getattr(self.manager, "audit_store", None):
+                self.manager.audit_store.record_task_completion(
+                    note_id=self.state.get("id", ""),
+                    title=self.state.get("title", "Sticky Note"),
+                    task_name=task.get("text", "Task"),
+                    start_time=task.get("start_time", now_iso),
+                    finish_time=now_iso,
+                    duration_seconds=duration_sec,
+                    timer_active=timer_active,
+                )
+        else:
+            task["finish_time"] = ""
+            task["duration_seconds"] = 0
+            task["duration_text"] = ""
+            task["start_time"] = now_iso
+            if self.manager and getattr(self.manager, "audit_store", None):
+                self.manager.audit_store.record_event(
+                    "task_reopened",
+                    note_id=self.state.get("id", ""),
+                    title=self.state.get("title", "Sticky Note"),
+                    action=f"Reopened task: {task.get('text', '')}",
+                    details={"task_name": task.get("text", "")},
+                )
+
+        self._sync_text_from_tasks()
+        row_w = getattr(self, "_task_rows", {}).get(task_id)
+        if row_w:
+            row_w.refresh_display()
+        self._save_state()
+
+    def _add_task_below(self, task_id=None):
+        tasks = self.state.setdefault("tasks", [])
+        new_task = {
+            "id": f"task_{uuid.uuid4().hex[:8]}",
+            "text": "",
+            "completed": False,
+            "start_time": _now_iso(),
+            "finish_time": "",
+            "duration_seconds": 0,
+            "duration_text": "",
+        }
+        insert_idx = len(tasks)
+        if task_id:
+            for idx, t in enumerate(tasks):
+                if t.get("id") == task_id:
+                    insert_idx = idx + 1
+                    break
+        tasks.insert(insert_idx, new_task)
+        self._sync_text_from_tasks()
+        self._refresh_checklist_ui()
+        self._save_state()
+        self._focus_task_id(new_task["id"])
+
+    def _remove_task(self, task_id, focus_previous=False):
+        tasks = self.state.get("tasks", [])
+        prev_id = None
+        remove_idx = -1
+        for idx, t in enumerate(tasks):
+            if t.get("id") == task_id:
+                remove_idx = idx
+                break
+            prev_id = t.get("id")
+
+        if remove_idx >= 0:
+            tasks.pop(remove_idx)
+            self._sync_text_from_tasks()
+            self._refresh_checklist_ui()
+            self._save_state()
+            if focus_previous and prev_id:
+                self._focus_task_id(prev_id)
+            elif not tasks:
+                self._add_task_below()
+
+    def _focus_task_id(self, task_id):
+        row_w = getattr(self, "_task_rows", {}).get(task_id)
+        if row_w and hasattr(row_w, "line_edit"):
+            row_w.line_edit.setFocus()
+
+    def _focus_task_relative(self, task_id, offset):
+        tasks = self.state.get("tasks", [])
+        current_idx = -1
+        for idx, t in enumerate(tasks):
+            if t.get("id") == task_id:
+                current_idx = idx
+                break
+        if current_idx >= 0:
+            target_idx = current_idx + offset
+            if 0 <= target_idx < len(tasks):
+                self._focus_task_id(tasks[target_idx].get("id"))
 
     def _set_theme(self, theme_id):
         self.state["theme_id"] = theme_id
@@ -970,8 +1554,6 @@ class StickyNoteWidget(QWidget):
         if overdue != self._overdue_active:
             self._overdue_active = overdue
             self._apply_theme()
-        elif overdue:
-            self._apply_theme()
         self._refresh_action_button()
 
     def _close_note(self):
@@ -1020,44 +1602,65 @@ class StickyNoteWidget(QWidget):
             """
         )
 
-        theme_menu = menu.addMenu("Theme")
+        # ── Real-Life Sticky Note Varieties ──
+        theme_menu = menu.addMenu("Sticky Color")
         theme_group = QActionGroup(theme_menu)
         theme_group.setExclusive(True)
+        color_emojis = {
+            "neon_postit_yellow": "💛",
+            "neon_postit_pink": "💖",
+            "neon_postit_lime": "💚",
+            "neon_postit_cyan": "💙",
+            "neon_postit_orange": "🧡",
+            "neon_postit_purple": "💜",
+            "sticky_paper_cream": "📄",
+            "sticky_paper_mint": "🍃",
+            "sticky_paper_blush": "🌸",
+            "sticky_paper_peach": "🍑",
+            "sticky_paper_sky": "☁️",
+            "sticky_paper_slate": "🪨",
+        }
         for theme in list_note_themes():
-            action = theme_menu.addAction(theme.label)
+            emoji = color_emojis.get(theme.theme_id, "📌")
+            action = theme_menu.addAction(f"{emoji} {theme.label}")
             action.setCheckable(True)
             action.setChecked(theme.theme_id == self.state.get("theme_id"))
             theme_group.addAction(action)
             action.triggered.connect(lambda checked, theme_id=theme.theme_id: self._set_theme(theme_id))
 
-        opacity_menu = menu.addMenu("Transparency")
-        current_op = float(self.state.get("opacity", 0.95))
-        for label, val in [
-            ("100% · Solid Paper", 1.0),
-            ("95% · Realistic", 0.95),
-            ("85% · Soft Glow", 0.85),
-            ("75% · Transparent", 0.75),
-            ("60% · See-Through", 0.60),
-            ("45% · Ghost", 0.45),
-            ("30% · Faint", 0.30),
-        ]:
-            act = opacity_menu.addAction(label)
-            act.setCheckable(True)
-            act.setChecked(abs(current_op - val) < 0.04)
-            act.triggered.connect(lambda checked, v=val: self._set_opacity(v))
-        opacity_menu.addSeparator()
-        opacity_menu.addAction("Custom Opacity...", self._prompt_custom_opacity)
+        # ── Mode & Task Actions ──
+        mode_menu = menu.addMenu("Note Mode")
+        chk_act = mode_menu.addAction("☑️ Checklist Mode")
+        chk_act.setCheckable(True)
+        chk_act.setChecked(self.state.get("note_mode", "checklist") == "checklist")
+        chk_act.triggered.connect(lambda: self._set_note_mode("checklist"))
 
+        free_act = mode_menu.addAction("📝 Freeform Text")
+        free_act.setCheckable(True)
+        free_act.setChecked(self.state.get("note_mode", "checklist") == "freeform")
+        free_act.triggered.connect(lambda: self._set_note_mode("freeform"))
+
+        menu.addAction("➕ Add Task", lambda: self._add_task_below())
+
+        # ── Timer ──
+        timer_menu = menu.addMenu("Timer")
+        timer_menu.addAction("Off", self._set_timer_off)
+        timer_menu.addAction("Elapsed (Stopwatch)", self._set_timer_elapsed)
+        timer_menu.addAction("Countdown 15 min", lambda: self._set_countdown_minutes(15))
+        timer_menu.addAction("Countdown 30 min", lambda: self._set_countdown_minutes(30))
+        timer_menu.addAction("Countdown 1 hour", lambda: self._set_countdown_minutes(60))
+        timer_menu.addAction("Custom Countdown...", self._set_custom_countdown)
+        timer_menu.addAction("Until 6:00 PM", self._set_countdown_end_of_day)
+
+        # ── Text Size ──
         text_size_menu = menu.addMenu("Text Size")
         current_px = int(self.state.get("font_size_px") or 15)
         for label, px in [
-            ("11px · Compact", 11),
-            ("13px · Small", 13),
+            ("12px · Compact", 12),
             ("15px · Normal", 15),
             ("18px · Medium", 18),
             ("22px · Large", 22),
-            ("26px · Extra Large", 26),
-            ("30px · Huge", 30),
+            ("28px · Extra Large", 28),
             ("36px · Maximum (36px)", 36),
         ]:
             act = text_size_menu.addAction(label)
@@ -1067,28 +1670,37 @@ class StickyNoteWidget(QWidget):
         text_size_menu.addSeparator()
         text_size_menu.addAction("Custom Size (px)...", self._prompt_custom_font_size)
 
+        # ── Transparency ──
+        opacity_menu = menu.addMenu("Transparency")
+        current_op = float(self.state.get("opacity", 0.95))
+        for label, val in [
+            ("100% · Solid Paper", 1.0),
+            ("95% · Realistic", 0.95),
+            ("85% · Soft Glow", 0.85),
+            ("70% · Transparent", 0.70),
+            ("50% · Ghost", 0.50),
+        ]:
+            act = opacity_menu.addAction(label)
+            act.setCheckable(True)
+            act.setChecked(abs(current_op - val) < 0.04)
+            act.triggered.connect(lambda checked, v=val: self._set_opacity(v))
+        opacity_menu.addSeparator()
+        opacity_menu.addAction("Custom Opacity...", self._prompt_custom_opacity)
+
+        # ── Font Style ──
         font_style_menu = menu.addMenu("Font Style")
         font_style_group = QActionGroup(font_style_menu)
         font_style_group.setExclusive(True)
+        cur_preset = self.state.get("font_preset", DEFAULT_FONT_PRESET_ID)
         for preset in list_font_presets():
-            action = font_style_menu.addAction(preset.label)
-            action.setCheckable(True)
-            action.setChecked(
-                preset.preset_id == self.state.get("font_preset", DEFAULT_FONT_PRESET_ID)
-            )
-            font_style_group.addAction(action)
-            action.triggered.connect(
-                lambda checked, preset_id=preset.preset_id: self._set_font_preset(preset_id)
-            )
-
-        timer_menu = menu.addMenu("Timer")
-        timer_menu.addAction("Off", self._set_timer_off)
-        timer_menu.addAction("Elapsed", self._set_timer_elapsed)
-        timer_menu.addAction("Countdown 30 min", lambda: self._set_countdown_minutes(30))
-        timer_menu.addAction("Countdown 1 hour", lambda: self._set_countdown_minutes(60))
-        timer_menu.addAction("Countdown 4 hours", lambda: self._set_countdown_minutes(240))
-        timer_menu.addAction("Custom...", self._set_custom_countdown)
-        timer_menu.addAction("Until 6:00 PM", self._set_countdown_end_of_day)
+            if preset.preset_id in ("theme_default", "marker_ink", "handwriting_casual", "comic_hand", "clean_sans", "calligraphy"):
+                action = font_style_menu.addAction(preset.label)
+                action.setCheckable(True)
+                action.setChecked(preset.preset_id == cur_preset)
+                font_style_group.addAction(action)
+                action.triggered.connect(
+                    lambda checked, preset_id=preset.preset_id: self._set_font_preset(preset_id)
+                )
 
         size_menu = menu.addMenu("Dimensions & Presets")
         size_menu.addAction("💡 Drag bottom edge / corner to resize", lambda: None).setEnabled(False)
@@ -1153,6 +1765,10 @@ class StickyNoteWidget(QWidget):
                 if getattr(self, "_resize_active", False):
                     self._do_resize(event.globalPosition().toPoint())
                     return True
+                elif self._drag_origin is not None:
+                    delta = event.globalPosition().toPoint() - self._drag_origin
+                    self.move(self._drag_pos + delta)
+                    return True
                 else:
                     mode = self._get_resize_mode(global_pt)
                     if mode == "corner":
@@ -1174,10 +1790,38 @@ class StickyNoteWidget(QWidget):
                         self._resize_start_pos = event.globalPosition().toPoint()
                         self._resize_start_size = self.size()
                         return True
+                    # Start drag from any non-interactive area of the frame
+                    child = self.frame.childAt(local_pos)
+                    interactive = (
+                        self.text_edit, self.project_title_edit, self.add_task_btn,
+                        self.lock_btn, self.close_btn, self.menu_btn,
+                        self.smaller_btn, self.bigger_btn, self.send_btn,
+                        self.action_btn, self.secondary_action_btn, self.size_grip,
+                    )
+                    # Also skip if the child is inside checklist_scroll (task edits, checkboxes)
+                    is_interactive = False
+                    if child is not None:
+                        if child in interactive:
+                            is_interactive = True
+                        elif self.checklist_scroll.isAncestorOf(child):
+                            is_interactive = True
+                        elif isinstance(child, (QCheckBox, QLineEdit, QPushButton)):
+                            is_interactive = True
+                    if not is_interactive:
+                        self._drag_origin = event.globalPosition().toPoint()
+                        self._drag_pos = self.frameGeometry().topLeft()
+                        self.setCursor(QCursor(Qt.ClosedHandCursor))
+                        return True
             elif event.type() == QEvent.MouseButtonRelease:
                 if getattr(self, "_resize_active", False):
                     self._resize_active = False
                     self._resize_mode = None
+                    self.setCursor(QCursor(Qt.ArrowCursor))
+                    self._save_state()
+                    return True
+                if self._drag_origin is not None:
+                    self._drag_origin = None
+                    self._drag_pos = None
                     self.setCursor(QCursor(Qt.ArrowCursor))
                     self._save_state()
                     return True
@@ -1197,7 +1841,7 @@ class StickyNoteWidget(QWidget):
                 event.accept()
                 return
 
-            if not self.text_edit.geometry().contains(event.position().toPoint()):
+            if not (self.text_edit.isVisible() and self.text_edit.geometry().contains(event.position().toPoint())):
                 self._drag_origin = event.globalPosition().toPoint()
                 self._drag_pos = self.frameGeometry().topLeft()
                 self.setCursor(QCursor(Qt.ClosedHandCursor))
@@ -1314,7 +1958,8 @@ class NetShareStickyNoteManager:
         self.load_notes()
 
     def _settings_notes(self):
-        notes = self.config.get("sticky_notes", "notes")
+        getter = getattr(self.config, "get_notes", None)
+        notes = getter() if callable(getter) else self.config.get("sticky_notes", "notes")
         return notes if isinstance(notes, list) else []
 
     def load_notes(self):
@@ -1482,7 +2127,11 @@ class NetShareStickyNoteManager:
         payload = []
         for widget in self._notes.values():
             payload.append(self._capture_widget_state(widget))
-        self.config.set("sticky_notes", "notes", payload)
+        setter = getattr(self.config, "set_notes", None)
+        if callable(setter):
+            setter(payload)
+        else:
+            self.config.set("sticky_notes", "notes", payload)
 
     def show_all(self):
         for widget in self._notes.values():
