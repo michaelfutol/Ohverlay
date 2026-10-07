@@ -14,12 +14,10 @@ def qapp():
     return app
 
 def test_preserved_files_and_active_registry():
-    # Verify cat, mermaid, and betta files exist in repository
+    # Verify betta file exists; retired cat/mermaid overlay pages were removed
     assert os.path.isfile("beta7.html")
-    assert os.path.isfile("cat-overlay.html")
-    assert os.path.isfile("mermaid-overlay.html")
-    assert os.path.isfile("cat.webm")
-    assert os.path.isfile("mermaid.webm")
+    assert not os.path.isfile("cat-overlay.html")
+    assert not os.path.isfile("mermaid-overlay.html")
 
     # Verify active overlays in registry
     registry_ids = [o["id"] for o in OVERLAY_REGISTRY]

@@ -119,7 +119,7 @@ def test_cichlid_overlay_manager_bridge(tmp_path):
     assert any("setBreedingSpeed(5.0)" in s for s in mgr._active["cichlid"].web_page.scripts)
 
     mgr.cichlid_set_breeding_stage("eggs")
-    assert any("setBreedingStage('eggs')" in s for s in mgr._active["cichlid"].web_page.scripts)
+    assert any('setBreedingStage("eggs")' in s for s in mgr._active["cichlid"].web_page.scripts)
 
     mgr.cichlid_reset_breeding()
     assert any("resetBreeding()" in s for s in mgr._active["cichlid"].web_page.scripts)

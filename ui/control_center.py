@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtGui import QColor, QFont, QGuiApplication
-from utils.logger import logger
+from modules.overlay_registry import panel_species, species_count_defaults
 
 
 class ControlCenterSignals(QWidget):
@@ -105,6 +105,11 @@ class ControlCenter(QWidget):
 
         self._build_ui()
         self._update_from_config()
+
+        if self.overlay_manager and hasattr(self.overlay_manager, "rest_mode"):
+            self.overlay_manager.rest_mode.species_rotated.connect(lambda s: self._update_from_config())
+            self.overlay_manager.rest_mode.rest_mode_entered.connect(self._on_rest_mode_state_changed)
+            self.overlay_manager.rest_mode.rest_mode_exited.connect(self._on_rest_mode_state_changed)
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
@@ -302,21 +307,7 @@ class ControlCenter(QWidget):
         scroll_layout.setSpacing(8)
 
         # ── Species Rows ──
-        species_list = [
-            ("Fireflies", "fireflies", 6),
-            ("Dragonflies", "dragonflies", 2),
-            ("Dandelions", "dandelions", 3),
-            ("Living Orchid", "orchid", 1),
-            ("Local Moon", "moon", 1),
-            ("Blue Butterfly", "butterfly_blue", 1),
-            ("Yellow Butterfly", "butterfly_yellow", 1),
-            ("Orange Butterfly", "butterfly_orange", 1),
-            ("Hornwort Plant", "hornwort", 4),
-            ("Neon Tetra", "neon_tetra", 2),
-            ("Betta Fish", "betta_fish", 1),
-            ("Jewel Cichlid", "cichlid", 1),
-            ("Telegrama Card", "telegrama", 1),
-        ]
+        species_list = [(item["panel_label"], item["id"], int(item["count"])) for item in panel_species()]
 
         for label_text, oid, default_count in species_list:
             row_layout = QHBoxLayout()
@@ -944,6 +935,87 @@ class ControlCenter(QWidget):
         # Separator line
         card_layout.addWidget(self._make_h_line())
 
+        # ── 🌙 Rest Mode (Pitch Black) Section ──
+        rest_box = QWidget(card)
+        rest_box.setObjectName("restBox")
+        rest_box.setStyleSheet("""
+            QWidget#restBox {
+                background: #0f172a;
+                border-radius: 8px;
+            }
+        """)
+        rest_layout = QVBoxLayout(rest_box)
+        rest_layout.setContentsMargins(10, 8, 10, 8)
+        rest_layout.setSpacing(6)
+
+        # Rest Mode Enter Button + Hint
+        rest_btn_row = QHBoxLayout()
+        self.enter_rest_btn = QPushButton("🌙 Enter Rest Mode (Blackout)", rest_box)
+        self.enter_rest_btn.setFixedHeight(28)
+        self.enter_rest_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1e293b, stop:1 #334155);
+                border: 1px solid #475569;
+                border-radius: 6px;
+                color: #f8fafc;
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 4px 10px;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #334155, stop:1 #475569);
+                border-color: #64748b;
+            }
+        """)
+        self.enter_rest_btn.setToolTip("Turn entire screen pitch black with only active overlays visible. Press Esc twice to exit.")
+        self.enter_rest_btn.clicked.connect(self._on_enter_rest_clicked)
+        rest_btn_row.addWidget(self.enter_rest_btn)
+
+        rest_hint_lbl = QLabel("Esc 2x exits", rest_box)
+        rest_hint_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; font-family: 'Segoe UI';")
+        rest_btn_row.addWidget(rest_hint_lbl)
+        rest_layout.addLayout(rest_btn_row)
+
+        # Rotation Controls Row
+        rot_row = QHBoxLayout()
+        rot_lbl = QLabel("Auto-Rotate:", rest_box)
+        rot_lbl.setStyleSheet("color: #cbd5e1; font-size: 10px; font-family: 'Segoe UI';")
+        rot_row.addWidget(rot_lbl)
+
+        self.rotate_toggle_btn = QPushButton("ON", rest_box)
+        self.rotate_toggle_btn.setCheckable(True)
+        self.rotate_toggle_btn.setFixedWidth(40)
+        self.rotate_toggle_btn.setFixedHeight(20)
+        self.rotate_toggle_btn.setStyleSheet("padding: 1px 4px; font-size: 9px; font-weight: 600;")
+        self.rotate_toggle_btn.toggled.connect(self._on_rotate_toggled)
+        rot_row.addWidget(self.rotate_toggle_btn)
+
+        rot_row.addSpacing(4)
+
+        interval_lbl = QLabel("Every:", rest_box)
+        interval_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; font-family: 'Segoe UI';")
+        rot_row.addWidget(interval_lbl)
+
+        self.rotate_slider = QSlider(Qt.Horizontal, rest_box)
+        self.rotate_slider.setRange(5, 60)
+        self.rotate_slider.setSingleStep(5)
+        self.rotate_slider.setPageStep(5)
+        self.rotate_slider.setValue(5)
+        self.rotate_slider.setFixedHeight(14)
+        rot_row.addWidget(self.rotate_slider)
+
+        self.rotate_val_lbl = QLabel("5 mins", rest_box)
+        self.rotate_val_lbl.setStyleSheet("color: #f1f5f9; font-size: 10px; font-family: 'Segoe UI'; font-weight: 500;")
+        self.rotate_val_lbl.setFixedWidth(42)
+        rot_row.addWidget(self.rotate_val_lbl)
+
+        self.rotate_slider.valueChanged.connect(self._on_rotate_slider_changed)
+        rest_layout.addLayout(rot_row)
+
+        card_layout.addWidget(rest_box)
+        card_layout.addWidget(self._make_h_line())
+
         # ── Action Buttons Footer ──
         act_layout = QHBoxLayout()
 
@@ -989,7 +1061,6 @@ class ControlCenter(QWidget):
         screen = QGuiApplication.primaryScreen()
         if not screen:
             return
-        geo = screen.geometry()
         avail = screen.availableGeometry()
 
         # Default width/height
@@ -1038,22 +1109,7 @@ class ControlCenter(QWidget):
         self.pin_btn.setChecked(bool(pinned))
 
         # Species state
-        species_defaults = {
-            "fireflies": 6,
-            "dragonflies": 2,
-            "dandelions": 3,
-            "cosmos": 7,
-            "moon": 1,
-            "butterfly_blue": 1,
-            "butterfly_yellow": 1,
-            "butterfly_orange": 1,
-            "hornwort": 4,
-            "neon_tetra": 2,
-            "mermaid": 1,
-            "telegrama": 1,
-            "betta_fish": 1,
-            "cat": 1,
-        }
+        species_defaults = species_count_defaults()
         for oid, widgets in self._species_widgets.items():
             active = self.config.get("overlays", oid) or False
             count = self.config.get("overlays", f"{oid}_count")
@@ -1178,6 +1234,66 @@ class ControlCenter(QWidget):
                     combo.blockSignals(True)
                     combo.setCurrentIndex(idx)
                     combo.blockSignals(False)
+
+        # Rest Mode configuration
+        if self.config and hasattr(self, "rotate_toggle_btn"):
+            rot_active = self.config.get("rest_mode", "auto_rotate")
+            if rot_active is None:
+                rot_active = True
+            self.rotate_toggle_btn.blockSignals(True)
+            self.rotate_toggle_btn.setChecked(bool(rot_active))
+            self.rotate_toggle_btn.setText("ON" if rot_active else "OFF")
+            self.rotate_toggle_btn.blockSignals(False)
+
+            interval = self.config.get("rest_mode", "rotation_interval_minutes") or 5
+            try:
+                interval_int = int(interval)
+            except (ValueError, TypeError):
+                interval_int = 5
+            self.rotate_slider.blockSignals(True)
+            self.rotate_slider.setValue(interval_int)
+            self.rotate_slider.blockSignals(False)
+            self._update_rotate_label(interval_int)
+
+        if self.overlay_manager and hasattr(self.overlay_manager, "is_rest_mode_active"):
+            is_active = self.overlay_manager.is_rest_mode_active()
+            self.enter_rest_btn.setText("Exit Rest Mode (Esc 2x)" if is_active else "🌙 Enter Rest Mode (Blackout)")
+
+    def _update_rotate_label(self, val):
+        if val >= 60:
+            self.rotate_val_lbl.setText("1 hr")
+        else:
+            self.rotate_val_lbl.setText(f"{val} mins")
+
+    def _on_enter_rest_clicked(self):
+        if self.overlay_manager:
+            self.overlay_manager.toggle_rest_mode()
+
+    def _on_rotate_toggled(self, checked):
+        self.rotate_toggle_btn.setText("ON" if checked else "OFF")
+        if self.config:
+            self.config.set("rest_mode", "auto_rotate", checked)
+            self.config.save()
+        if self.overlay_manager and hasattr(self.overlay_manager, "rest_mode"):
+            self.overlay_manager.rest_mode.set_auto_rotate(checked)
+
+    def _on_rotate_slider_changed(self, value):
+        snapped = max(5, min(60, int(round(value / 5.0) * 5)))
+        if snapped != value:
+            self.rotate_slider.blockSignals(True)
+            self.rotate_slider.setValue(snapped)
+            self.rotate_slider.blockSignals(False)
+        self._update_rotate_label(snapped)
+        if self.config:
+            self.config.set("rest_mode", "rotation_interval_minutes", snapped)
+            self.config.save()
+        if self.overlay_manager and hasattr(self.overlay_manager, "rest_mode"):
+            self.overlay_manager.rest_mode.set_rotation_interval(snapped)
+
+    def _on_rest_mode_state_changed(self):
+        if self.overlay_manager and hasattr(self.overlay_manager, "is_rest_mode_active"):
+            is_active = self.overlay_manager.is_rest_mode_active()
+            self.enter_rest_btn.setText("Exit Rest Mode (Esc 2x)" if is_active else "🌙 Enter Rest Mode (Blackout)")
 
     def _on_hornwort_xmas_toggled(self, checked):
         if "hornwort" in self._species_widgets:

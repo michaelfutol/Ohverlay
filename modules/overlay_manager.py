@@ -3,8 +3,10 @@ Overlay Manager - Loads and manages HTML overlay windows via QWebEngineView.
 Each overlay runs in its own transparent, always-on-top window.
 """
 
+import json
 import os
-import sys
+from urllib.parse import urlencode
+
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 from PySide6.QtCore import Qt, QUrl, QTimer
 from PySide6.QtGui import QGuiApplication, QColor, QCursor
@@ -16,136 +18,20 @@ try:
 except ImportError:
     HAS_WEBENGINE = False
 
+from modules.overlay_registry import OVERLAY_REGISTRY  # noqa: F401  (re-exported for callers/tests)
 from utils.logger import logger
+from utils.paths import resource_path
 
 
-OVERLAY_REGISTRY = [
-    {
-        "id": "moon",
-        "name": "Local Moon",
-        "file": "marketplace-overlays/moon-overlay.html",
-        "category": "ambient",
-        "description": "Local Moon with current phase, orientation, distance, true sky altitude, and occasional drifting clouds",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "orchid",
-        "name": "Living Moth Orchid",
-        "file": "marketplace-overlays/orchid-overlay.html",
-        "category": "ambient",
-        "description": "Waxy Phalaenopsis with an arching flower spike, cursor physics, and an eight-hour bloom succession",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "butterfly_blue",
-        "name": "Blue Butterfly",
-        "file": "marketplace-overlays/butterflies-blue-overlay.html",
-        "category": "ambient",
-        "description": "Photo-textured 3D Blue Butterfly with realistic flight and landing",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "butterfly_yellow",
-        "name": "Yellow Butterfly",
-        "file": "marketplace-overlays/butterflies-yellow-overlay.html",
-        "category": "ambient",
-        "description": "Photo-textured 3D Yellow Butterfly with realistic flight and landing",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "butterfly_orange",
-        "name": "Orange Butterfly",
-        "file": "marketplace-overlays/butterflies-orange-overlay.html",
-        "category": "ambient",
-        "description": "Photo-textured 3D Orange Butterfly with realistic flight and landing",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "hornwort",
-        "name": "Hornwort Plant",
-        "file": "ohverlay-hornwort.html",
-        "category": "ambient",
-        "description": "Eight-hour growing hornwort plant with gentle water physics",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "neon_tetra",
-        "name": "Neon Tetra",
-        "file": "tetra-overlay.html",
-        "category": "ambient",
-        "description": "Realistic 3D WebGL Neon Tetra with volumetric head-led turns and translucent fins",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "betta_fish",
-        "name": "Betta Fish",
-        "file": "beta7.html",
-        "category": "ambient",
-        "description": "Hyperrealistic Canary-Gold & Cobalt Blue Halfmoon Betta Fish with procedural fins and view-dependent highlights",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "cichlid",
-        "name": "Jewel Cichlid",
-        "file": "jewel-cichlid1 (6).html",
-        "category": "ambient",
-        "description": "Three-dimensional red-orange Jewel Cichlid with cyan reflective speckles, front-view inspection and gill cover respiration",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "nature_world",
-        "name": "Unified Nature World",
-        "file": "nature-world-overlay.html",
-        "category": "ambient",
-        "description": "Unified single-canvas nature world with dragonflies, fireflies, and dandelions",
-    },
-    {
-        "id": "fireflies",
-        "name": "Fireflies",
-        "file": "fireflies-overlay.html",
-        "category": "ambient",
-        "description": "Six realistic fireflies flying and flashing independently",
-    },
-    {
-        "id": "dandelions",
-        "name": "Dandelion Seeds",
-        "file": "dandelions-overlay.html",
-        "category": "ambient",
-        "description": "Dandelion seeds floating and drifting",
-    },
-    {
-        "id": "dragonflies",
-        "name": "Realistic Dragonflies",
-        "file": "dragonflies-overlay.html",
-        "category": "ambient",
-        "description": "High-fidelity WebGL dragonfly flight study with species presets, aerodynamic steering, and interactive reactions",
-        "extra_params": {"transparent": "1", "controls": "0"},
-    },
-    {
-        "id": "sticky_note",
-        "name": "Vintage Sticky Note",
-        "file": "sticky-note-overlay.html",
-        "category": "office",
-        "description": "Persistent technical instruction note with task deadline countdown, pin/tape styles, and drag-and-drop",
-    },
-    {
-        "id": "exam_reviewer",
-        "name": "Exam & Study Reviewer",
-        "file": "exam-reviewer-overlay.html",
-        "category": "learning",
-        "description": "Spaced repetition exam study flashcard overlay",
-    },
-    {
-        "id": "telegrama",
-        "name": "Telegrama & Hallmark Dispatch",
-        "file": "telegrama-overlay.html",
-        "category": "personal",
-        "description": "Literal paper telegram and Hallmark card for thoughtful 2-way messages from OFWs and family",
-        "interactive": True,
-        "window_size": (480, 420),
-        "extra_params": {"transparent": "1"},
-    },
-]
+def js_literal(value):
+    """Serialize a Python value as a safe JavaScript literal (never interpolate raw strings into JS)."""
+    return json.dumps(value, ensure_ascii=True)
+
+
+def js_call(page, function_name, *args, guard=True):
+    """Call ``window.<function_name>(...)`` with safely-encoded arguments; no-op if it is not defined."""
+    call = f"window.{function_name}({', '.join(js_literal(a) for a in args)});"
+    page.runJavaScript(f"if (window.{function_name}) {{ {call} }}" if guard else call)
 
 
 class TransparentWebPage(QWebEnginePage):
@@ -210,64 +96,70 @@ class OverlayWindow(QMainWindow):
         else:
             self.setGeometry(screen_geometry)
 
-        # Cursor tracking for non-interactive ambient overlays
-        if not is_interactive:
-            self._mouse_timer = QTimer(self)
-            self._mouse_timer.setInterval(33)  # ~30 Hz cursor tracking
-            self._last_cursor_pos = None
-            self._cursor_inside = False
-            self._mouse_timer.timeout.connect(self._track_cursor)
-            self._mouse_timer.start()
+        # Cursor tracking is driven by ONE shared timer in OverlayManager (not one per window).
+        self._is_interactive = is_interactive
+        self._last_cursor_pos = None
+        self._cursor_inside = False
 
-    def _track_cursor(self):
+    @property
+    def tracks_cursor(self):
+        return not self._is_interactive
+
+    def handle_cursor(self, pos):
+        """Forward a global cursor position to the page (called by the manager's shared timer)."""
         try:
-            pos = QCursor.pos()
-            if pos != self._last_cursor_pos:
-                if self._last_cursor_pos is not None:
-                    dx = abs(pos.x() - self._last_cursor_pos.x())
-                    dy = abs(pos.y() - self._last_cursor_pos.y())
-                    if dx < 3 and dy < 3:
-                        return
-                self._last_cursor_pos = pos
-                geo = self.geometry()
-                if geo.contains(pos):
-                    self._cursor_inside = True
-                    rel_x = pos.x() - geo.x()
-                    rel_y = pos.y() - geo.y()
-                    self.web_page.runJavaScript(
-                        f"if (window.__onCursorMove) window.__onCursorMove({rel_x}, {rel_y});"
-                    )
-                elif self._cursor_inside:
-                    self._cursor_inside = False
-                    self.web_page.runJavaScript(
-                        "if (window.__onCursorLeave) window.__onCursorLeave();"
-                    )
+            if pos == self._last_cursor_pos:
+                return
+            if self._last_cursor_pos is not None:
+                if abs(pos.x() - self._last_cursor_pos.x()) < 3 and abs(pos.y() - self._last_cursor_pos.y()) < 3:
+                    return
+            self._last_cursor_pos = pos
+            geo = self.geometry()
+            if geo.contains(pos):
+                self._cursor_inside = True
+                js_call(self.web_page, "__onCursorMove", pos.x() - geo.x(), pos.y() - geo.y())
+            elif self._cursor_inside:
+                self._cursor_inside = False
+                js_call(self.web_page, "__onCursorLeave")
         except Exception:
             pass
 
-    def closeEvent(self, event):
-        if hasattr(self, "_mouse_timer") and self._mouse_timer.isActive():
-            self._mouse_timer.stop()
-        super().closeEvent(event)
+    # Hidden overlays must cost ~nothing: freeze the page (stops JS timers, rAF and WebGL) and
+    # thaw it the moment the window is shown again. Works for every caller of show()/hide().
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        if not event.spontaneous():
+            QTimer.singleShot(0, lambda: self._set_frozen(True))
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._set_frozen(False)
+
+    def _set_frozen(self, frozen):
+        try:
+            if frozen and self.isVisible():
+                return  # re-shown before the deferred freeze ran
+            state = QWebEnginePage.LifecycleState.Frozen if frozen else QWebEnginePage.LifecycleState.Active
+            self.web_page.setLifecycleState(state)
+        except Exception as exc:  # lifecycle API differs across Qt builds; never break show/hide
+            logger.debug(f"Lifecycle change skipped for {self.overlay_id}: {exc}")
 
     def load_local_html(self, relative_path, scale=1.0, count=None, extra_params=None):
-        file_path = os.path.abspath(relative_path)
+        file_path = resource_path(relative_path)
         if not os.path.exists(file_path):
             logger.error(f"HTML overlay file not found: {file_path}")
             return False
 
-        url = QUrl.fromLocalFile(file_path)
-        url_string = url.toString()
         params = []
         if scale != 1.0:
-            params.append(f"scale={scale}")
+            params.append(("scale", scale))
         if count is not None:
-            params.append(f"count={count}")
-        if extra_params:
-            for k, v in extra_params.items():
-                params.append(f"{k}={v}")
+            params.append(("count", count))
+        for k, v in (extra_params or {}).items():
+            params.append((k, v))
+        url_string = QUrl.fromLocalFile(file_path).toString()
         if params:
-            url_string += "?" + "&".join(params)
+            url_string += "?" + urlencode(params)
         self.web_view.load(QUrl(url_string))
         logger.info(f"Loading overlay {self.overlay_id} from {file_path} (scale={scale}, count={count})")
         return True
@@ -280,6 +172,17 @@ class OverlayManager:
         self.config = config
         self._active = {}
         self._global_visible = True
+        self._param_providers = {}
+        self._fs_paused = False
+        self._fs_paused_ids = []
+        self._cursor_timer = QTimer()
+        self._cursor_timer.setInterval(33)  # ~30 Hz, shared by every ambient overlay
+        self._cursor_timer.timeout.connect(self._tick_cursor)
+        self._fullscreen_timer = QTimer()
+        self._fullscreen_timer.setInterval(1500)
+        self._fullscreen_timer.timeout.connect(self._tick_fullscreen)
+        from modules.rest_mode import RestModeController
+        self.rest_mode = RestModeController(self, config=config)
 
     @property
     def available(self):
@@ -303,6 +206,69 @@ class OverlayManager:
         horizon_global = available.bottom() + 1 if available.bottom() < full.bottom() else full.bottom() + 1
         return max(0, min(virtual_geometry.height(), horizon_global - virtual_geometry.y()))
 
+    # ------------------------------------------------------------------ plumbing
+    def set_param_provider(self, overlay_id, provider):
+        """Register ``provider() -> dict`` of extra URL params computed each time the overlay opens."""
+        self._param_providers[overlay_id] = provider
+
+    def _call(self, overlay_id, function_name, *args):
+        """Invoke ``window.<function_name>(*args)`` inside an active overlay (safe, JSON-encoded)."""
+        win = self._active.get(overlay_id)
+        if win and win.web_page:
+            js_call(win.web_page, function_name, *args)
+
+    def _refresh_timers(self):
+        """Run the shared timers only while they have work to do."""
+        tracking = any(w.tracks_cursor and w.isVisible() for w in self._active.values())
+        if tracking and not self._cursor_timer.isActive():
+            self._cursor_timer.start()
+        elif not tracking and self._cursor_timer.isActive():
+            self._cursor_timer.stop()
+
+        wants_fs = bool(self._active) and bool(
+            self.config.get("performance", "pause_on_fullscreen") if self.config else False
+        )
+        if wants_fs and not self._fullscreen_timer.isActive():
+            self._fullscreen_timer.start()
+        elif not wants_fs and self._fullscreen_timer.isActive():
+            self._fullscreen_timer.stop()
+            self._resume_from_fullscreen()
+
+    def _tick_cursor(self):
+        pos = QCursor.pos()
+        for win in self._active.values():
+            if win.tracks_cursor and win.isVisible():
+                win.handle_cursor(pos)
+
+    def _tick_fullscreen(self):
+        if self.is_rest_mode_active():
+            self._resume_from_fullscreen()
+            return
+        from modules.fullscreen_guard import is_foreground_fullscreen
+
+        if is_foreground_fullscreen():
+            if not self._fs_paused:
+                self._fs_paused_ids = [oid for oid, w in self._active.items() if w.isVisible()]
+                for oid in self._fs_paused_ids:
+                    self._active[oid].hide()
+                self._fs_paused = True
+                logger.info(f"Fullscreen app detected — paused {len(self._fs_paused_ids)} overlay(s)")
+        else:
+            self._resume_from_fullscreen()
+
+    def _resume_from_fullscreen(self):
+        if not self._fs_paused:
+            return
+        self._fs_paused = False
+        ids, self._fs_paused_ids = self._fs_paused_ids, []
+        if self._global_visible:
+            for oid in ids:
+                win = self._active.get(oid)
+                if win:
+                    win.show()
+        logger.info("Fullscreen app closed — overlays resumed")
+
+    # ------------------------------------------------------------------ lifecycle
     def open_overlay(self, overlay_id, save_state=True):
         if not self.available:
             return False
@@ -342,29 +308,22 @@ class OverlayManager:
             opacity_val = self.config.get("overlays", f"{overlay_id}_opacity")
             if opacity_val is not None:
                 try:
-                    op = float(opacity_val)
-                    extra_params["opacity"] = op
+                    extra_params["opacity"] = float(opacity_val)
                 except (ValueError, TypeError):
                     pass
 
         if overlay_id == "hornwort" and self.config:
-            spd = self.config.get("overlays", "hornwort_growth_speed") or 1.0
-            extra_params["speed"] = spd
-            xmas_enabled = self.config.get("overlays", "hornwort_xmas_lights") or False
-            xmas_mode = self.config.get("overlays", "hornwort_xmas_mode") or "twinkle"
-            xmas_theme = self.config.get("overlays", "hornwort_xmas_theme") or "multicolor"
-            if xmas_enabled:
+            extra_params["speed"] = self.config.get("overlays", "hornwort_growth_speed") or 1.0
+            if self.config.get("overlays", "hornwort_xmas_lights"):
                 extra_params["xmas"] = "1"
-                extra_params["xmas_mode"] = str(xmas_mode)
-                extra_params["xmas_theme"] = str(xmas_theme)
+                extra_params["xmas_mode"] = str(self.config.get("overlays", "hornwort_xmas_mode") or "twinkle")
+                extra_params["xmas_theme"] = str(self.config.get("overlays", "hornwort_xmas_theme") or "multicolor")
 
         if overlay_id == "betta_fish" and self.config:
-            breed = self.config.get("overlays", "betta_fish_breed") or "buttercup"
-            extra_params["breed"] = str(breed)
+            extra_params["breed"] = str(self.config.get("overlays", "betta_fish_breed") or "buttercup")
 
         if overlay_id == "orchid" and self.config:
-            color = self.config.get("overlays", "orchid_color") or "fuchsia"
-            extra_params["color"] = str(color)
+            extra_params["color"] = str(self.config.get("overlays", "orchid_color") or "fuchsia")
 
         if overlay_id in ("moon", "orchid"):
             extra_params["ground"] = self._get_taskbar_horizon_y(geometry)
@@ -377,38 +336,43 @@ class OverlayManager:
                 extra_params["lon"] = longitude
 
         if overlay_id == "dragonflies" and self.config:
-            palette = self.config.get("overlays", "dragonflies_palette") or "mixed"
-            extra_params["palette"] = str(palette)
-            style = self.config.get("overlays", "dragonflies_style") or "percher"
-            extra_params["style"] = str(style)
+            extra_params["palette"] = str(self.config.get("overlays", "dragonflies_palette") or "mixed")
+            extra_params["style"] = str(self.config.get("overlays", "dragonflies_style") or "percher")
 
         if overlay_id == "dandelions" and self.config:
-            style = self.config.get("overlays", "dandelions_style") or "cyan"
-            extra_params["style"] = str(style)
+            extra_params["style"] = str(self.config.get("overlays", "dandelions_style") or "cyan")
+
+        provider = self._param_providers.get(overlay_id)
+        if provider:
+            try:
+                extra_params.update(provider() or {})
+            except Exception as exc:
+                logger.warning(f"Param provider for {overlay_id} failed: {exc}")
 
         if win.load_local_html(info["file"], scale=scale, count=count, extra_params=extra_params):
             self._active[overlay_id] = win
-            if self._global_visible:
+            if self._global_visible and not self._fs_paused:
                 win.show()
+            elif self._fs_paused:
+                self._fs_paused_ids.append(overlay_id)
 
             if save_state and self.config:
                 self.config.set("overlays", overlay_id, True)
+            self._refresh_timers()
             return True
+        win.deleteLater()
         return False
 
+    # ------------------------------------------------------------------ live controls
     def set_overlay_opacity(self, overlay_id, opacity):
         """Update opacity/transparency of an active overlay live without reloading."""
-        if overlay_id in self._active:
-            win = self._active[overlay_id]
-            t_pct = int(round(max(0.0, min(1.0, 1.0 - opacity)) * 100))
-            win.web_page.runJavaScript(f"if(window.setTransparency) window.setTransparency({t_pct});")
-            win.web_page.runJavaScript(f"if(window.setOpacity) window.setOpacity({opacity});")
+        opacity = max(0.0, min(1.0, float(opacity)))
+        self._call(overlay_id, "setTransparency", int(round((1.0 - opacity) * 100)))
+        self._call(overlay_id, "setOpacity", opacity)
 
     def set_overlay_scale(self, overlay_id, scale):
         """Update scale/size of an active overlay live without reloading."""
-        if overlay_id in self._active:
-            win = self._active[overlay_id]
-            win.web_page.runJavaScript(f"if(window.setScale) window.setScale({scale});")
+        self._call(overlay_id, "setScale", float(scale))
 
     def set_hornwort_growth_speed(self, speed):
         """Update Hornwort growth speed multiplier live without reloading (clamped 1.0 to 5.0)."""
@@ -416,216 +380,104 @@ class OverlayManager:
             clamped_speed = max(1.0, min(5.0, float(speed)))
         except (ValueError, TypeError):
             clamped_speed = 1.0
-        if "hornwort" in self._active:
-            win = self._active["hornwort"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setGrowthSpeed) window.setGrowthSpeed({clamped_speed});")
+        self._call("hornwort", "setGrowthSpeed", clamped_speed)
 
     def restart_hornwort_growth(self):
         """Restart hornwort plant growth from age 0."""
         if "hornwort" in self._active:
-            win = self._active["hornwort"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.restartGrowth) window.restartGrowth();")
-                logger.info("Hornwort growth restarted via OverlayManager.")
+            self._call("hornwort", "restartGrowth")
+            logger.info("Hornwort growth restarted via OverlayManager.")
 
     def set_hornwort_xmas_lights(self, enabled, mode="twinkle", theme="multicolor"):
         """Update Hornwort Christmas lights live without reloading."""
-        if "hornwort" in self._active:
-            win = self._active["hornwort"]
-            if win and win.web_page:
-                js = f"if(window.setXmasLights) window.setXmasLights({str(bool(enabled)).lower()}, '{mode}', '{theme}');"
-                win.web_page.runJavaScript(js)
+        self._call("hornwort", "setXmasLights", bool(enabled), str(mode), str(theme))
 
     def set_betta_fish_breed(self, breed):
         """Update Betta Fish breed live without reloading."""
-        if "betta_fish" in self._active:
-            win = self._active["betta_fish"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.__setBettaBreed) window.__setBettaBreed('{breed}');")
+        self._call("betta_fish", "__setBettaBreed", str(breed))
 
     def set_orchid_color(self, color):
         """Update the living orchid palette without restarting its lifecycle."""
         allowed = {"fuchsia", "blush", "white", "violet", "sunset"}
-        selected = color if color in allowed else "fuchsia"
-        if "orchid" in self._active:
-            win = self._active["orchid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setOrchidColor) window.setOrchidColor('{selected}');")
+        self._call("orchid", "setOrchidColor", color if color in allowed else "fuchsia")
 
     def set_dragonflies_palette(self, palette):
-        """Update Dragonfly species/palette preset live without reloading."""
-        if "dragonflies" in self._active:
-            win = self._active["dragonflies"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setPalette) window.setPalette('{palette}');")
+        self._call("dragonflies", "setPalette", str(palette))
 
     def set_dragonflies_style(self, style):
-        """Update Dragonfly flight style live without reloading."""
-        if "dragonflies" in self._active:
-            win = self._active["dragonflies"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setStyle) window.setStyle('{style}');")
+        self._call("dragonflies", "setStyle", str(style))
 
     def set_dandelions_style(self, style):
-        """Update Dandelion style live without reloading."""
-        if "dandelions" in self._active:
-            win = self._active["dandelions"]
-            if win and win.web_page:
-                escaped = str(style).replace("'", "\\'")
-                win.web_page.runJavaScript(f"if(window.__setDandelionStyle) window.__setDandelionStyle('{escaped}');")
+        self._call("dandelions", "__setDandelionStyle", str(style))
 
     def dragonflies_startle(self):
-        """Startle all dragonflies into evasive flight."""
-        if "dragonflies" in self._active:
-            win = self._active["dragonflies"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.scatter) window.scatter();")
+        self._call("dragonflies", "scatter")
 
     def dragonflies_roam(self):
-        """Command all resting dragonflies to take flight."""
-        if "dragonflies" in self._active:
-            win = self._active["dragonflies"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.roam) window.roam();")
+        self._call("dragonflies", "roam")
 
     def toggle_dragonflies_controls(self):
-        """Toggle in-overlay HUD control panel."""
-        if "dragonflies" in self._active:
-            win = self._active["dragonflies"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+        self._call("dragonflies", "toggleControls")
 
     def set_moon_location(self, lat, lon):
-        """Update Moon coordinates live without reloading."""
-        if "moon" in self._active:
-            win = self._active["moon"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setLocation) window.setLocation({lat}, {lon});")
+        self._call("moon", "setLocation", float(lat), float(lon))
+
+    def _moon_toggle(self, fn, force):
+        self._call("moon", fn, *(() if force is None else (bool(force),)))
 
     def toggle_moon_preview(self, force=None):
-        """Toggle Moon preview mode (always visible) live."""
-        if "moon" in self._active:
-            win = self._active["moon"]
-            if win and win.web_page:
-                arg = f"{'true' if force else 'false'}" if force is not None else ""
-                win.web_page.runJavaScript(f"if(window.togglePreview) window.togglePreview({arg});")
+        self._moon_toggle("togglePreview", force)
 
     def toggle_moon_dock(self, force=None):
-        """Toggle Moon docking right above taskbar tray vs sky altitude."""
-        if "moon" in self._active:
-            win = self._active["moon"]
-            if win and win.web_page:
-                arg = f"{'true' if force else 'false'}" if force is not None else ""
-                win.web_page.runJavaScript(f"if(window.toggleDock) window.toggleDock({arg});")
+        self._moon_toggle("toggleDock", force)
 
     def toggle_moon_clouds(self, force=None):
-        """Toggle Moon drifting clouds live."""
-        if "moon" in self._active:
-            win = self._active["moon"]
-            if win and win.web_page:
-                arg = f"{'true' if force else 'false'}" if force is not None else ""
-                win.web_page.runJavaScript(f"if(window.toggleClouds) window.toggleClouds({arg});")
+        self._moon_toggle("toggleClouds", force)
 
     def toggle_moon_controls(self):
-        """Toggle Moon in-overlay HUD control panel."""
-        if "moon" in self._active:
-            win = self._active["moon"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+        self._call("moon", "toggleControls")
 
     def set_cichlid_count(self, count):
-        """Update Jewel Cichlid count live."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setCount) window.setCount({count});")
+        self._call("cichlid", "setCount", int(count))
 
     def cichlid_dart(self):
-        """Command Jewel Cichlid to dart & brake."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.dart) window.dart();")
+        self._call("cichlid", "dart")
 
     def cichlid_turn(self):
-        """Command Jewel Cichlid to turn around."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.turn) window.turn();")
+        self._call("cichlid", "turn")
 
     def cichlid_dig(self):
-        """Command Jewel Cichlid to dig at sand."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.dig) window.dig();")
+        self._call("cichlid", "dig")
 
     def cichlid_return_home(self):
-        """Command Jewel Cichlid to return home."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.returnHome) window.returnHome();")
+        self._call("cichlid", "returnHome")
 
     def cichlid_graze(self):
-        """Command Jewel Cichlid to visit hornwort and graze on algae."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.graze) window.graze();")
+        self._call("cichlid", "graze")
 
     def cichlid_cruise(self):
-        """Command Jewel Cichlid to cruise freely in open water."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.cruise) window.cruise();")
+        self._call("cichlid", "cruise")
 
     def cichlid_front_view(self):
-        """Toggle Jewel Cichlid front-view shape study."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.frontView) window.frontView();")
+        self._call("cichlid", "frontView")
 
     def cichlid_toggle_pair(self):
-        """Toggle Jewel Cichlid paired demo."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.togglePair) window.togglePair();")
+        self._call("cichlid", "togglePair")
 
     def toggle_cichlid_controls(self):
-        """Toggle Jewel Cichlid in-overlay HUD control panel."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.toggleControls) window.toggleControls();")
+        self._call("cichlid", "toggleControls")
 
     def cichlid_set_breeding_speed(self, speed):
-        """Set Jewel Cichlid breeding simulation speed multiplier."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript(f"if(window.setBreedingSpeed) window.setBreedingSpeed({float(speed)});")
+        self._call("cichlid", "setBreedingSpeed", float(speed))
 
     def cichlid_set_breeding_stage(self, stage):
-        """Set Jewel Cichlid breeding stage override ('courtship', 'eggs', 'eyed', 'wrigglers', 'fry', 'auto')."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                clean_stage = str(stage).replace("'", "").replace('"', "")
-                win.web_page.runJavaScript(f"if(window.setBreedingStage) window.setBreedingStage('{clean_stage}');")
+        """Breeding stage override ('courtship', 'eggs', 'eyed', 'wrigglers', 'fry', 'auto')."""
+        self._call("cichlid", "setBreedingStage", str(stage))
 
     def cichlid_reset_breeding(self):
-        """Reset Jewel Cichlid breeding lifecycle back to beginning."""
-        if "cichlid" in self._active:
-            win = self._active["cichlid"]
-            if win and win.web_page:
-                win.web_page.runJavaScript("if(window.resetBreeding) window.resetBreeding();")
+        self._call("cichlid", "resetBreeding")
 
+    # ------------------------------------------------------------------ open / close
     def reload_overlay(self, overlay_id):
         """Reload an active overlay with updated configuration (e.g. count, scale)."""
         if overlay_id in self._active:
@@ -641,14 +493,14 @@ class OverlayManager:
 
             if save_state and self.config:
                 self.config.set("overlays", overlay_id, False)
+            self._refresh_timers()
 
     def toggle_overlay(self, overlay_id):
         if overlay_id in self._active:
             self.close_overlay(overlay_id)
             return False
-        else:
-            self.open_overlay(overlay_id)
-            return True
+        self.open_overlay(overlay_id)
+        return True
 
     def is_active(self, overlay_id):
         return overlay_id in self._active
@@ -658,11 +510,14 @@ class OverlayManager:
 
     def toggle_all_visibility(self):
         self._global_visible = not self._global_visible
+        self._fs_paused = False  # an explicit user choice overrides the fullscreen auto-pause
+        self._fs_paused_ids = []
         for win in self._active.values():
             if self._global_visible:
                 win.show()
             else:
                 win.hide()
+        self._refresh_timers()
         return self._global_visible
 
     def restore_state(self):
@@ -676,7 +531,34 @@ class OverlayManager:
             if self.config.get("overlays", oid):
                 self.open_overlay(oid, save_state=False)
 
+    def enter_rest_mode(self):
+        """Enter full-screen pitch black Rest Mode."""
+        if hasattr(self, "rest_mode"):
+            self.rest_mode.enter_rest_mode()
+
+    def exit_rest_mode(self):
+        """Exit Rest Mode and return to normal workspace."""
+        if hasattr(self, "rest_mode"):
+            self.rest_mode.exit_rest_mode()
+
+    def toggle_rest_mode(self):
+        """Toggle Rest Mode on or off."""
+        if hasattr(self, "rest_mode"):
+            self.rest_mode.toggle_rest_mode()
+
+    def is_rest_mode_active(self):
+        return hasattr(self, "rest_mode") and self.rest_mode.is_active()
+
+    def handle_escape(self):
+        if hasattr(self, "rest_mode"):
+            return self.rest_mode.handle_escape()
+        return False
+
     def close_all(self):
+        self._cursor_timer.stop()
+        self._fullscreen_timer.stop()
+        if hasattr(self, "rest_mode") and self.rest_mode.is_active():
+            self.rest_mode.exit_rest_mode()
         for win in list(self._active.values()):
             win.close()
             win.deleteLater()
